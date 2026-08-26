@@ -1,0 +1,23 @@
+{
+  "kb": "valorantHeroKnow",
+  "exported": "2026-08-25",
+  "note": "端到端实测：工作台提交的真实投稿（含点赞与评论），模拟导出投稿包后按 ima 条目模板入库",
+  "entries": [
+    {
+      "id": "u1787646950187",
+      "type": "hero",
+      "target": "jett",
+      "text": "实测投稿：捷风大招切刀瞬间可以先用 Q 位移拉身位再出刀，命中率明显更高",
+      "gif": "",
+      "video": "",
+      "source": "user",
+      "user_id": "u_mt8eu65uftnc",
+      "author": "自动化测试员",
+      "ts": "2026-08-25",
+      "likes": 1,
+      "comments": [
+        { "author": "我", "text": "自动化测试评论：这条投稿来自端到端测试", "ts": "2026-08-25" }
+      ]
+    }
+  ]
+}
