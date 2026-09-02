@@ -341,6 +341,16 @@
 </tbody>
 </table>
 
+<p><strong>面试高频追问 → 直接照搬话术（30-60 秒）</strong></p>
+<table>
+<thead><tr><th>追问</th><th>答（先结论再展开）</th></tr></thead>
+<tbody>
+<tr><td><strong>Q1：为什么用 SQLite 而不用 MySQL？</strong></td><td>「<strong>结论：M0 阶段用 SQLite 因为零运维、单文件、随产品走。</strong> 我不需要一台独立数据库服务器，文件跟项目一起走、面试官拿到就能打开看；并发写我用进程内锁串行化解决。等真上 WeGame 平台，用户量起来后，迁移到 MySQL/Postgres 改的是 <code>backend/server.py</code> 的连接串，业务代码零改动——这就是分层抽象的红利。」</td></tr>
+<tr><td><strong>Q2：为什么 4 张表不分更多？</strong></td><td>「<strong>结论：4 张表正好对应一个最小可观测闭环——内容、投稿、点赞、评论。</strong> 多分表会增加跨表 JOIN，比如把 author 单独成表，每次查投稿都要 JOIN；但当前场景一个投稿就是一个 author，没有 1:N 关系，强行拆表是过度设计。<strong>判断标准就一条：拆表后能否减少 JOIN 或支持独立扩展，否则就是没必要的复杂度。</strong>」</td></tr>
+<tr><td><strong>Q3：M1/M2 怎么扩？</strong></td><td>「<strong>M1 加 <code>tags</code> 表（投稿-标签 N:N）+ <code>reports</code> 表（举报）；M2 加 <code>notifications</code> 表（关注流推送）。</strong> 关键看是否产生新的独立查询维度。tags 让用户能按主题过滤投稿，reports 需要独立的状态机（待审 / 已处理 / 已驳回），notifications 涉及跨用户的消息聚合——这些都是单表撑不下的查询模式，扩表就有理由。<strong>反之 likes 和 comments 现在不扩</strong>，因为单 submission_id 查询 + 倒序排序足够。」</td></tr>
+</tbody>
+</table>
+
 <p><strong>面试讲解口径（30 秒）：</strong></p>
 <blockquote>"内容与状态分离：内容进知识库做 RAG 语料、带来源标注，状态进数据库做产品逻辑。M0 用 ima 是因为低频、人工审核、零运维；等做个性化检索再加向量层，ima 仍是内容源。"</blockquote>
 
