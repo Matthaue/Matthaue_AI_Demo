@@ -30,9 +30,10 @@
 | `valorant_community.db` | 成品 SQLite 数据库（4 表 + 2 中文视图：21 攻略链接 / 4 投稿 / 3 评论 / 5 点赞） |
 | `valorant_community_db.sql` | 建表迁移脚本（可重建数据库或迁到 MySQL） |
 | `hero_content_library.json` | 内容库数据（7 英雄 + 7 地图） |
-| `screenshots/` | 界面截图（含「后端数据库模式」实机截图） |
-| `ima知识库内容/` | 腾讯 ima 共享知识库 valorantHeroKnow 的 17 条 Markdown 内容与管线脚本 |
-| `overview_第六轮_投稿闭环验证.md` | 投稿→入库闭环验证记录 |
+| `screenshots/` | 界面截图 + 数据模型图（含「后端数据库模式」实机截图、`er_diagram.svg` ER 图、Mermaid 渲染效果图） |
+| `ima知识库内容/` | 腾讯 ima 共享知识库 valorantHeroKnow 的 17 条 Markdown 内容与管线脚本（含端到端 / 轮播 / 后端 / Mermaid 四类验证脚本） |
+| `overview_第六轮_投稿闭环验证.md` | 投稿 → 审核 → 入库闭环验证记录 |
+| `overview_第七轮_数据库与ER图.md` | 数据库接入与数据模型设计记录（含 6 个关键设计判断、实测结果、踩坑与面试话术） |
 
 ## 技术亮点
 
@@ -41,6 +42,8 @@
 - **投稿闭环**：社群投稿 → 人工审核 → ima 入库（REPLACE 覆盖重名）→ 检索命中，已端到端实测
 - **双模数据架构**：同一套 UI 可跑在「本机 localStorage」或「后端 SQLite 数据库」上——界面只认 `DataService` 适配层（list/add/like/comment/reset/export），换存储实现 UI 代码零改动；后端不可达时 6 秒超时自动降级回本机模式
 - **点赞幂等 + 乐观更新**：靠 `UNIQUE(submission_id, user_id)` 约束保证计数不漂移（实测连点 3 次稳定为 1）；点赞/评论先动 UI 再发请求，失败自动回滚
+- **数据模型（4 表 2 视图，见 ER 图）**：`submissions` / `likes` / `comments` 属状态层（高频读写），`content_docs` 属内容层（低频只读）；三层设计判断——点赞独立成表保证幂等、冗余计数字段免 `COUNT(*)`、内容层不建外键避免内容更新被业务写入阻塞
+- **验证脚本化**：端到端接入、轮播交互、后端接口、Mermaid 语法均有可复用脚本（`ima知识库内容/管线脚本/`），不是"应该能跑"而是逐个实测通过
 - **安全规范**：COS 上传凭证不入库、不提交（仓库中已排除 `creds/`）
 
 ## 快速体验
