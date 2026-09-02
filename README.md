@@ -23,11 +23,14 @@
 
 | 目录/文件 | 说明 |
 |---|---|
-| `补位急救站_workbench.html` | 工作台 Demo（单 HTML，双击即开，数据存 localStorage） |
+| `补位急救站_workbench.html` | 工作台 Demo（单 HTML，双击即开；可切本机 localStorage 或后端 SQLite 两种数据源） |
 | `ai_demo.mp4` | 2 分钟演示视频（工作台四栏实际操作录屏） |
-| `WeGame_Agent_产品文档.md / .html` | 作品产品文档（含 ima vs NoSQL 分层决策） |
+| `WeGame_Agent_产品文档.md / .html` | 作品产品文档（含 ima vs NoSQL 分层决策与已落地的双模架构） |
+| `backend/` | 社群数据后端（零依赖 Python，仅标准库；含 `server.py` / `init_db.py` / `start_server.bat` / 接口文档） |
+| `valorant_community.db` | 成品 SQLite 数据库（4 表 + 2 中文视图：21 攻略链接 / 4 投稿 / 3 评论 / 5 点赞） |
+| `valorant_community_db.sql` | 建表迁移脚本（可重建数据库或迁到 MySQL） |
 | `hero_content_library.json` | 内容库数据（7 英雄 + 7 地图） |
-| `screenshots/` | 四个界面截图 |
+| `screenshots/` | 界面截图（含「后端数据库模式」实机截图） |
 | `ima知识库内容/` | 腾讯 ima 共享知识库 valorantHeroKnow 的 17 条 Markdown 内容与管线脚本 |
 | `overview_第六轮_投稿闭环验证.md` | 投稿→入库闭环验证记录 |
 
@@ -36,12 +39,28 @@
 - **数据驱动渲染**：单 HTML 内 `HEROES` 数组驱动下拉框/轮播/投稿目标，加英雄零渲染逻辑改动
 - **内容中枢 = 腾讯 ima**：共享知识库 + OpenAPI 写入/检索，内容即未来 RAG 语料源；来源标注（`source: official` / `source: user`）+ 完整元数据（user_id/ts/likes/comments）
 - **投稿闭环**：社群投稿 → 人工审核 → ima 入库（REPLACE 覆盖重名）→ 检索命中，已端到端实测
-- **安全规范**：COS 上传凭证不入库不入库、不提交（仓库中已排除 `creds/`）
+- **双模数据架构**：同一套 UI 可跑在「本机 localStorage」或「后端 SQLite 数据库」上——界面只认 `DataService` 适配层（list/add/like/comment/reset/export），换存储实现 UI 代码零改动；后端不可达时 6 秒超时自动降级回本机模式
+- **点赞幂等 + 乐观更新**：靠 `UNIQUE(submission_id, user_id)` 约束保证计数不漂移（实测连点 3 次稳定为 1）；点赞/评论先动 UI 再发请求，失败自动回滚
+- **安全规范**：COS 上传凭证不入库、不提交（仓库中已排除 `creds/`）
 
 ## 快速体验
 
+**方式一 · 零部署（推荐先看这个）**
+
 - 双击打开 `补位急救站_workbench.html` 即可，无需安装任何依赖；
 - 📹 想先看效果？播放仓库根目录的 `ai_demo.mp4`（2 分钟操作演示）。
+
+**方式二 · 接真实数据库（体验多人共享同一份数据）**
+
+```bash
+# 1. 生成数据库（首次运行；仓库已附带成品库，可跳过）
+python backend/init_db.py
+
+# 2. 启动后端（零依赖，只需 Python 标准库；也可双击 backend/start_server.bat）
+python backend/server.py
+```
+
+启动后浏览器自动打开 http://127.0.0.1:8000/ → 进入「社群投稿」页 → 数据源切到 **🗄️ 后端数据库 SQLite** → 点「测试连接」，即可看到「已连接 · 链接 21 · 投稿 4 · 评论 3 · 点赞 5」。此时的点赞/投稿/评论全部读写 `valorant_community.db`。
 
 ## 后续规划
 
