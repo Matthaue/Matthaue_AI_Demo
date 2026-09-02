@@ -226,6 +226,60 @@
 
 这套双模架构的意义：它证明"状态层迟早要独立成库"这个判断不是空话——M0 用 localStorage 顶着，V1 换成 SQLite 时**界面代码零改动**，只需新增一个存储实现。这正是分层设计的价值所在。
 
+**数据模型（ER 图）**
+
+```mermaid
+erDiagram
+    submissions ||--o{ likes : "1:N 点赞"
+    submissions ||--o{ comments : "1:N 评论"
+    submissions |o--o{ content_docs : "target 对应 target_id（逻辑关联，非外键）"
+    submissions {
+        TEXT id PK
+        TEXT type "hero or map"
+        TEXT target "英雄或地图 id"
+        TEXT text "一句话技巧正文"
+        TEXT gif "动图链接"
+        TEXT video "视频链接"
+        TEXT author "显示署名"
+        TEXT user_id "投稿人 ID"
+        TEXT ts "投稿时间"
+        INT likes "冗余计数"
+        INT demo "1 为示例投稿"
+        TEXT source "user or official"
+    }
+    likes {
+        INT id PK
+        TEXT submission_id FK
+        TEXT user_id "与 submission_id 组成唯一约束"
+        TEXT ts "点赞时间"
+    }
+    comments {
+        INT id PK
+        TEXT submission_id FK
+        TEXT author "评论人"
+        TEXT text "评论正文"
+        TEXT ts "评论时间"
+    }
+    content_docs {
+        INT id PK
+        TEXT doc_type "hero or map"
+        TEXT target_id "内容库对象 id"
+        TEXT title "链接标题"
+        TEXT url "攻略或教学链接"
+        TEXT source "official"
+    }
+```
+
+> 静态版 ER 图（离线可看、可直接放进 PPT）：`screenshots/er_diagram.svg`
+
+这张图里三个值得讲的设计判断：
+
+| 设计点 | 做法 | 为什么这么设计 |
+|---|---|---|
+| **点赞幂等** | `likes` 表独立成表 + `UNIQUE(submission_id, user_id)` | 如果用「点赞数 + 一个 liked 数组」存在投稿行里，并发点赞会覆盖、计数会漂移。拆成表后靠数据库约束保证一个人只能点一次，计数只在状态真正变化时增减 |
+| **计数冗余** | `submissions.likes` 存冗余计数，同时保留 `likes` 明细表 | 列表页要按赞排序，每次 `COUNT(*)` 太慢；冗余字段用于读，明细表用于对账与去重，两者不一致时以明细表为准 |
+| **内容层不建外键** | `content_docs.target_id` 与 `submissions.target` 只做逻辑关联 | 内容层是低频只读数据（官方攻略链接），状态层是高频读写数据，二者更新频率差两个数量级。强行建外键会让内容更新被业务写入阻塞——这正是"内容层 / 状态层分离"在表结构上的体现 |
+
 **面试讲解口径（30 秒）：**
 
 > "内容与状态分离：内容进知识库做 RAG 语料、带来源标注，状态进数据库做产品逻辑。M0 用 ima 是因为低频、人工审核、零运维；等做个性化检索再加向量层，ima 仍是内容源。"

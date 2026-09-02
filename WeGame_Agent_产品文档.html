@@ -67,6 +67,17 @@
     padding:12px 18px;margin:14px 0;border-radius:0 8px 8px 0;font-size:13.5px;
   }
 
+  .er-figure{
+    background:#fff;border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px;margin:14px 0;overflow-x:auto;
+  }
+  .er-figure svg{max-width:100%;height:auto;display:block}
+  .er-src summary{
+    cursor:pointer;font-size:13px;color:var(--sub);
+    padding:6px 0;user-select:none;
+  }
+  .er-src summary:hover{color:var(--accent)}
+
   footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--sub)}
   .hint{margin-top:24px;text-align:center;font-size:12px;color:var(--sub)}
 </style>
@@ -272,6 +283,63 @@
 <li><strong>乐观更新 + 失败回滚</strong>：点赞/评论先更新 UI 再发请求，失败则回滚并提示，避免网络延迟造成"点了没反应"。评论以服务端返回的完整列表替换本地占位，保证两种模式下都不会重复插入。</li>
 </ul>
 <p>这套双模架构的意义：它证明"状态层迟早要独立成库"这个判断不是空话——M0 用 localStorage 顶着，V1 换成 SQLite 时<strong>界面代码零改动</strong>，只需新增一个存储实现。这正是分层设计的价值所在。</p>
+
+<h4>数据模型（ER 图）</h4>
+<div class="er-figure">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 630" width="100%" role="img" font-family="system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif"><title>valorant_community.db 数据模型 ER 图</title><desc>四张表：submissions 投稿主表，一对多关联 likes 点赞表与 comments 评论表；content_docs 内容链接表通过 target_id 与 submissions.target 逻辑关联。</desc><defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs><text x="40" y="26" font-size="14" font-weight="500" fill="#2C2C2A">valorant_community.db · 数据模型（4 表 2 视图）</text><rect x="40" y="48" width="270" height="282" rx="8" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/><rect x="40" y="48" width="270" height="26" rx="8" fill="#F7C1C1" stroke="#A32D2D" stroke-width="0.5"/><rect x="40" y="68" width="270" height="6" fill="#F7C1C1"/><text x="52" y="65" font-size="13" font-weight="500" fill="#791F1F" dominant-baseline="central">submissions · 投稿</text><text x="298" y="65" font-size="11" fill="#A32D2D" text-anchor="end" dominant-baseline="central">主表 · 12 字段</text><g font-size="12" dominant-baseline="central"><text x="52"  y="88"  fill="#2C2C2A">id</text><text x="298" y="88"  fill="#A32D2D" text-anchor="end">PK</text><text x="52"  y="108" fill="#444441">type</text><text x="298" y="108" fill="#5F5E5A" text-anchor="end">hero / map</text><text x="52"  y="128" fill="#444441">target</text><text x="298" y="128" fill="#5F5E5A" text-anchor="end">英雄或地图 id</text><text x="52"  y="148" fill="#444441">text</text><text x="298" y="148" fill="#5F5E5A" text-anchor="end">一句话技巧正文</text><text x="52"  y="168" fill="#444441">gif / video</text><text x="298" y="168" fill="#5F5E5A" text-anchor="end">附件链接</text><text x="52"  y="188" fill="#444441">author</text><text x="298" y="188" fill="#5F5E5A" text-anchor="end">显示署名</text><text x="52"  y="208" fill="#444441">user_id</text><text x="298" y="208" fill="#5F5E5A" text-anchor="end">投稿人 ID</text><text x="52"  y="228" fill="#444441">ts</text><text x="298" y="228" fill="#5F5E5A" text-anchor="end">投稿时间</text><text x="52"  y="248" fill="#444441">likes</text><text x="298" y="248" fill="#888780" text-anchor="end">冗余计数 · INT</text><text x="52"  y="268" fill="#444441">demo</text><text x="298" y="268" fill="#888780" text-anchor="end">1 = 示例</text><text x="52"  y="288" fill="#444441">source</text><text x="298" y="288" fill="#888780" text-anchor="end">user / official</text><text x="52"  y="308" fill="#888780" font-size="11">索引 idx_subs_target(target) · 其余字段为 TEXT</text></g><rect x="390" y="48" width="250" height="106" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><rect x="390" y="48" width="250" height="26" rx="8" fill="#B5D4F4" stroke="#185FA5" stroke-width="0.5"/><rect x="390" y="68" width="250" height="6" fill="#B5D4F4"/><text x="402" y="65" font-size="13" font-weight="500" fill="#0C447C" dominant-baseline="central">likes · 点赞</text><text x="628" y="65" font-size="11" fill="#185FA5" text-anchor="end" dominant-baseline="central">状态 · 4 字段</text><g font-size="12" dominant-baseline="central"><text x="402" y="88"  fill="#2C2C2A">id</text><text x="628" y="88"  fill="#185FA5" text-anchor="end">PK</text><text x="402" y="108" fill="#444441">submission_id</text><text x="628" y="108" fill="#185FA5" text-anchor="end">FK → submissions.id</text><text x="402" y="128" fill="#444441">user_id</text><text x="628" y="128" fill="#185FA5" text-anchor="end">UQ（与上组成 UNIQUE）</text><text x="402" y="148" fill="#444441">ts</text><text x="628" y="148" fill="#5F5E5A" text-anchor="end">点赞时间</text></g><rect x="390" y="186" width="250" height="126" rx="8" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/><rect x="390" y="186" width="250" height="26" rx="8" fill="#C0DD97" stroke="#3B6D11" stroke-width="0.5"/><rect x="390" y="206" width="250" height="6" fill="#C0DD97"/><text x="402" y="203" font-size="13" font-weight="500" fill="#27500A" dominant-baseline="central">comments · 评论</text><text x="628" y="203" font-size="11" fill="#3B6D11" text-anchor="end" dominant-baseline="central">状态 · 5 字段</text><g font-size="12" dominant-baseline="central"><text x="402" y="226" fill="#2C2C2A">id</text><text x="628" y="226" fill="#3B6D11" text-anchor="end">PK</text><text x="402" y="246" fill="#444441">submission_id</text><text x="628" y="246" fill="#3B6D11" text-anchor="end">FK → submissions.id</text><text x="402" y="266" fill="#444441">author</text><text x="628" y="266" fill="#5F5E5A" text-anchor="end">评论人</text><text x="402" y="286" fill="#444441">text</text><text x="628" y="286" fill="#5F5E5A" text-anchor="end">评论正文</text><text x="402" y="306" fill="#444441">ts</text><text x="628" y="306" fill="#5F5E5A" text-anchor="end">评论时间</text></g><rect x="40" y="394" width="390" height="146" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/><rect x="40" y="394" width="390" height="26" rx="8" fill="#FAC775" stroke="#854F0B" stroke-width="0.5"/><rect x="40" y="414" width="390" height="6" fill="#FAC775"/><text x="52" y="411" font-size="13" font-weight="500" fill="#633806" dominant-baseline="central">content_docs · 内容层链接（只读）</text><text x="418" y="411" font-size="11" fill="#854F0B" text-anchor="end" dominant-baseline="central">内容 · 6 字段</text><g font-size="12" dominant-baseline="central"><text x="52"  y="434" fill="#2C2C2A">id</text><text x="418" y="434" fill="#854F0B" text-anchor="end">PK</text><text x="52"  y="454" fill="#444441">doc_type</text><text x="418" y="454" fill="#5F5E5A" text-anchor="end">hero / map</text><text x="52"  y="474" fill="#444441">target_id</text><text x="418" y="474" fill="#5F5E5A" text-anchor="end">逻辑关联 → submissions.target</text><text x="52"  y="494" fill="#444441">title</text><text x="418" y="494" fill="#5F5E5A" text-anchor="end">链接标题</text><text x="52"  y="514" fill="#444441">url</text><text x="418" y="514" fill="#5F5E5A" text-anchor="end">攻略或教学链接</text><text x="52"  y="534" fill="#444441">source</text><text x="418" y="534" fill="#888780" text-anchor="end">official</text></g><path d="M310 110 H350 V99 H384" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/><text x="365" y="92" font-size="11" fill="#5F5E5A" dominant-baseline="central" text-anchor="middle">1 : N</text><path d="M310 230 H350 V240 H384" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/><text x="365" y="232" font-size="11" fill="#5F5E5A" dominant-baseline="central" text-anchor="middle">1 : N</text><path d="M150 330 V388" fill="none" stroke="#888780" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"/><text x="160" y="358" font-size="11" fill="#5F5E5A" dominant-baseline="central">target = target_id（逻辑关联，非外键）</text><rect x="40" y="556" width="600" height="58" rx="8" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.5"/><text x="52" y="570" font-size="12" fill="#444441" dominant-baseline="central">约束：likes 表 UNIQUE(submission_id, user_id) → 点赞幂等，连点不漂移</text><text x="52" y="588" font-size="12" fill="#5F5E5A" dominant-baseline="central">视图：v_submission_stats、v_content_docs（中文列名）</text><text x="52" y="606" font-size="12" fill="#5F5E5A" dominant-baseline="central">分层：content_docs = 内容层（只读、低频）　submissions / likes / comments = 状态层（读写、按人查、需聚合）</text></svg>
+</div>
+<p class="hint" style="text-align:left;margin-top:10px">静态版 ER 图文件：<code>screenshots/er_diagram.svg</code>（自包含 SVG，离线可看，可直接拖进 PPT / Figma）</p>
+<details class="er-src">
+<summary>Mermaid 源码（点击展开，可复制到 GitHub README 或任何支持 Mermaid 的编辑器）</summary>
+<div class="flow">erDiagram
+    submissions ||--o{ likes : &quot;1:N 点赞&quot;
+    submissions ||--o{ comments : &quot;1:N 评论&quot;
+    submissions |o--o{ content_docs : &quot;target 对应 target_id（逻辑关联，非外键）&quot;
+    submissions {
+        TEXT id PK
+        TEXT type &quot;hero or map&quot;
+        TEXT target &quot;英雄或地图 id&quot;
+        TEXT text &quot;一句话技巧正文&quot;
+        TEXT gif &quot;动图链接&quot;
+        TEXT video &quot;视频链接&quot;
+        TEXT author &quot;显示署名&quot;
+        TEXT user_id &quot;投稿人 ID&quot;
+        TEXT ts &quot;投稿时间&quot;
+        INT likes &quot;冗余计数&quot;
+        INT demo &quot;1 为示例投稿&quot;
+        TEXT source &quot;user or official&quot;
+    }
+    likes {
+        INT id PK
+        TEXT submission_id FK
+        TEXT user_id &quot;与 submission_id 组成唯一约束&quot;
+        TEXT ts &quot;点赞时间&quot;
+    }
+    comments {
+        INT id PK
+        TEXT submission_id FK
+        TEXT author &quot;评论人&quot;
+        TEXT text &quot;评论正文&quot;
+        TEXT ts &quot;评论时间&quot;
+    }
+    content_docs {
+        INT id PK
+        TEXT doc_type &quot;hero or map&quot;
+        TEXT target_id &quot;内容库对象 id&quot;
+        TEXT title &quot;链接标题&quot;
+        TEXT url &quot;攻略或教学链接&quot;
+        TEXT source &quot;official&quot;
+    }</div>
+</details>
+<p><strong>这张图里三个值得讲的设计判断：</strong></p>
+<table>
+<thead><tr><th>设计点</th><th>做法</th><th>为什么这么设计</th></tr></thead>
+<tbody>
+<tr><td><strong>点赞幂等</strong></td><td><code>likes</code> 表独立成表 + <code>UNIQUE(submission_id, user_id)</code></td><td>如果用「点赞数 + liked 数组」存在投稿行里，并发点赞会互相覆盖、计数会漂移。拆成表后靠数据库约束保证一个人只能点一次，计数只在状态真正变化时增减</td></tr>
+<tr><td><strong>计数冗余</strong></td><td><code>submissions.likes</code> 存冗余计数，同时保留 <code>likes</code> 明细表</td><td>列表页要按赞排序，每次 <code>COUNT(*)</code> 太慢。冗余字段用于读，明细表用于对账与去重，两者不一致时以明细表为准</td></tr>
+<tr><td><strong>内容层不建外键</strong></td><td><code>content_docs.target_id</code> 与 <code>submissions.target</code> 只做逻辑关联</td><td>内容层是低频只读数据（官方攻略链接），状态层是高频读写数据，更新频率差两个数量级。强行建外键会让内容更新被业务写入阻塞——这正是「内容层 / 状态层分离」在表结构上的体现</td></tr>
+</tbody>
+</table>
 
 <p><strong>面试讲解口径（30 秒）：</strong></p>
 <blockquote>"内容与状态分离：内容进知识库做 RAG 语料、带来源标注，状态进数据库做产品逻辑。M0 用 ima 是因为低频、人工审核、零运维；等做个性化检索再加向量层，ima 仍是内容源。"</blockquote>
