@@ -34,15 +34,16 @@ Valorant「补位急救站」社群数据后端 —— 零依赖版
 import argparse
 import json
 import os
-import random
 import sqlite3
-import string
 import sys
 import threading
 import time
+import traceback
+import uuid
 import webbrowser
 from contextlib import contextmanager
 from datetime import date
+from html import escape as html_escape
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, unquote
 
@@ -124,27 +125,43 @@ def list_submissions(user_id=None):
         return [row_submission(c, r, user_id) for r in rows]
 
 
+def new_sid():
+    """生成投稿 ID：毫秒时间戳(hex) + uuid 随机段。
+
+    原实现是「毫秒时间戳 + 1 位随机字母」，同毫秒并发时只有 26 种取值，
+    30 并发实测出现 2 次 UNIQUE 冲突（生日悖论）。改用 uuid 段后碰撞概率可忽略。"""
+    return "u" + format(int(time.time() * 1000), "x") + uuid.uuid4().hex[:8]
+
+
 def create_submission(payload):
-    sid = "u" + str(int(time.time() * 1000)) + random.choice(string.ascii_lowercase)
-    with db() as c:
-        c.execute(
-            "INSERT INTO submissions (id, type, target, text, gif, video, author, user_id, ts,"
-            " likes, demo, source) VALUES (?,?,?,?,?,?,?,?,?,0,0,?)",
-            (
-                sid,
-                payload.get("type", "hero"),
-                payload.get("target", ""),
-                payload.get("text", ""),
-                payload.get("gif", "") or "",
-                payload.get("video", "") or "",
-                payload.get("author") or "匿名玩家",
-                payload.get("user_id") or "anonymous",
-                payload.get("ts") or today(),
-                payload.get("source") or "user",
-            ),
-        )
-        row = c.execute("SELECT * FROM submissions WHERE id=?", (sid,)).fetchone()
-        return row_submission(c, row, payload.get("user_id"))
+    # ID 冲突时重试：db() 在异常时会自动 rollback，重试安全
+    last = None
+    for _ in range(5):
+        sid = new_sid()
+        try:
+            with db() as c:
+                c.execute(
+                    "INSERT INTO submissions (id, type, target, text, gif, video, author, user_id, ts,"
+                    " likes, demo, source) VALUES (?,?,?,?,?,?,?,?,?,0,0,?)",
+                    (
+                        sid,
+                        payload.get("type", "hero"),
+                        payload.get("target", ""),
+                        payload.get("text", ""),
+                        payload.get("gif", "") or "",
+                        payload.get("video", "") or "",
+                        payload.get("author") or "匿名玩家",
+                        payload.get("user_id") or "anonymous",
+                        payload.get("ts") or today(),
+                        payload.get("source") or "user",
+                    ),
+                )
+                row = c.execute("SELECT * FROM submissions WHERE id=?", (sid,)).fetchone()
+                return row_submission(c, row, payload.get("user_id"))
+        except sqlite3.IntegrityError as e:
+            last = e          # 极小概率撞 ID，换一个重试
+            continue
+    raise RuntimeError("生成投稿 ID 连续冲突: %s" % last)
 
 
 def set_like(sub_id, user_id, liked):
@@ -292,6 +309,8 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        # 缓存预检结果 24h：否则每个 POST（非简单请求）都要先多一次 OPTIONS 往返
+        self.send_header("Access-Control-Max-Age", "86400")
 
     def _json(self, obj, code=200):
         body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
@@ -302,14 +321,87 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    # ---------- 健壮性：任何响应都必须带 CORS 头 ----------
+    def send_response(self, code, message=None):
+        # 标记响应已开始，供 handle_one_request 判断是否还能补发错误响应
+        self._resp_started = True
+        super().send_response(code, message)
+
+    def send_error(self, code, message=None, explain=None):
+        """重写，让 404 等错误响应也带 CORS 头。
+
+        不能简单转发给基类——基类内部会自己走完 send_response + end_headers，
+        没有插入自定义响应头的机会。跨域场景下缺 CORS 头会让浏览器报 CORS 错误，
+        把真正的 404 掩盖掉，排查时极易误导。"""
+        self._resp_started = True
+        try:
+            shortmsg, longmsg = self.responses[code]
+        except KeyError:
+            shortmsg, longmsg = "???", "???"
+        msg = message or shortmsg
+        exp = explain or longmsg
+        body = (
+            "<!DOCTYPE html><html lang='zh'><head><meta charset='utf-8'>"
+            "<title>%(code)d %(msg)s</title></head><body>"
+            "<h1>%(code)d %(msg)s</h1><p>%(exp)s</p></body></html>"
+        ) % {
+            "code": code,
+            "msg": html_escape(str(msg)),
+            "exp": html_escape(str(exp)),
+        }
+        body = body.encode("utf-8", "replace")
+        self.send_response(code, msg)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self._cors()
+        self.send_header("Connection", "close")
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    def handle_one_request(self):
+        """全局异常兜底。
+
+        未捕获异常会导致连接直接断开、不返回任何响应，前端 fetch 只能拿到
+        'Failed to fetch'，用户会误判成网络/服务崩溃。这里统一转成带 CORS 头的
+        JSON 500，让前端能拿到真实错误信息。"""
+        self._resp_started = False
+        try:
+            super().handle_one_request()
+        except (ConnectionResetError, BrokenPipeError, TimeoutError):
+            self.close_connection = True          # 客户端已断开，无需响应
+        except Exception as e:
+            err = "%s: %s" % (type(e).__name__, e)
+            sys.stdout.write("  [500] %s\n" % err)
+            sys.stdout.write("  " + traceback.format_exc().replace("\n", "\n  ").rstrip() + "\n")
+            if not self._resp_started:
+                try:
+                    self._json({"ok": False, "error": "服务端内部错误", "detail": err}, 500)
+                except Exception:
+                    pass
+            self.close_connection = True
+
     def _body(self):
         length = int(self.headers.get("Content-Length") or 0)
         if not length:
             return {}
         try:
-            return json.loads(self.rfile.read(length).decode("utf-8"))
+            raw = json.loads(self.rfile.read(length).decode("utf-8"))
         except Exception:
             return {}
+        return raw if isinstance(raw, dict) else {}
+
+    @staticmethod
+    def _s(v, default="", maxlen=2000):
+        """安全取字符串：非字符串输入一律降级为 default，绝不抛异常。
+
+        直接从 JSON 取值后调 .strip() 是常见崩溃点——客户端传 {"text":{"a":1}}
+        这类结构就会抛 AttributeError。所有用户输入都必须过这一层。"""
+        if isinstance(v, str):
+            return v.strip()[:maxlen]
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            return str(v)[:maxlen]
+        return default
 
     def log_message(self, fmt, *args):
         # 精简日志：只打印 API 调用
@@ -338,6 +430,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "image/svg+xml")
             self.send_header("Content-Length", str(len(self.FAVICON)))
+            self._cors()
             self.end_headers()
             self.wfile.write(self.FAVICON)
             return
@@ -378,23 +471,41 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         p = urlparse(self.path).path
         b = self._body()
+        S = self._s          # 所有用户输入都过这层，杜绝类型错误导致的 500
 
         if p == "/api/submissions":
-            if not (b.get("text") or "").strip():
+            text = S(b.get("text"))
+            if not text:
                 return self._json({"ok": False, "error": "技巧内容必填"}, 400)
-            item = create_submission(b)
+            if S(b.get("type"), "hero") not in ("hero", "map"):
+                return self._json({"ok": False, "error": "type 只能是 hero 或 map"}, 400)
+            item = create_submission(
+                {
+                    "type": S(b.get("type"), "hero", 16),
+                    "target": S(b.get("target"), "", 64),
+                    "text": text,
+                    "gif": S(b.get("gif"), "", 500),
+                    "video": S(b.get("video"), "", 500),
+                    "author": S(b.get("author"), "匿名玩家", 32),
+                    "user_id": S(b.get("user_id"), "anonymous", 64),
+                    "source": S(b.get("source"), "user", 16),
+                }
+            )
             return self._json({"ok": True, "item": item})
 
         parts = p.strip("/").split("/")  # api / submissions / <id> / like|comments
         if len(parts) == 4 and parts[0] == "api" and parts[1] == "submissions":
-            sid, action = parts[2], parts[3]
+            sid, action = parts[2], unquote(parts[3])
             if action == "like":
-                r = set_like(sid, b.get("user_id") or "anonymous", bool(b.get("liked", True)))
+                r = set_like(sid, S(b.get("user_id"), "anonymous", 64), bool(b.get("liked", True)))
                 if r is None:
                     return self._json({"ok": False, "error": "投稿不存在"}, 404)
                 return self._json({"ok": True, **r})
             if action == "comments":
-                r = add_comment(sid, b.get("author") or "匿名玩家", (b.get("text") or "").strip())
+                ctext = S(b.get("text"))
+                if not ctext:
+                    return self._json({"ok": False, "error": "评论内容必填"}, 400)
+                r = add_comment(sid, S(b.get("author"), "匿名玩家", 32), ctext)
                 if r is None:
                     return self._json({"ok": False, "error": "投稿不存在"}, 404)
                 return self._json({"ok": True, **r})

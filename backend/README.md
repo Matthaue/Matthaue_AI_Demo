@@ -83,6 +83,51 @@ elif (not liked) and exists:  # 之前赞过   → 删除明细 + 计数 -1
 - 每个请求独立连接，规避 `sqlite3` 跨线程限制
 - 静态文件做了目录穿越防护，中文文件名已 URL 解码
 
+**投稿 ID 生成**：`毫秒时间戳(hex) + uuid4 前 8 位`，并在 `UNIQUE` 冲突时自动重试最多 5 次。
+
+> 早期版本用「毫秒时间戳 + 1 位随机字母」，同毫秒并发时只有 26 种取值，
+> 30 并发压测实测出现 2 次 `UNIQUE constraint failed`。改用 uuid 段后 30/30 全部成功。
+
+## CORS 跨域处理
+
+响应头（所有响应统一附加，含 4xx / 5xx / 静态文件）：
+
+```
+Access-Control-Allow-Origin:  *
+Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS
+Access-Control-Allow-Headers: Content-Type
+Access-Control-Max-Age:       86400     # 缓存预检 24h，省掉每个 POST 前的一次 OPTIONS 往返
+```
+
+**什么时候 CORS 才会生效？** 这点容易搞混：
+
+| 打开方式 | 页面 origin | 是否触发 CORS | 结果 |
+|---|---|---|---|
+| 访问 `http://127.0.0.1:8000/`（推荐） | `http://127.0.0.1:8000` | 否（同源） | 正常 |
+| 双击 HTML（`file://`） | `null` | **是** | `* ` 放行 null origin，可用 |
+| 前端部署在其他端口/域名 | 如 `http://localhost:3000` | **是** | 放行 |
+
+也就是说，用本服务自带的静态托管访问工作台时，CORS 其实不参与；
+它的价值在于**允许你双击 HTML 也能连后端**，以及未来前端独立部署时无需改后端。
+
+**验证脚本**（真实浏览器，curl 不执行 CORS 策略，只有浏览器才真正拦截）：
+
+| 脚本 | 场景 | 结果 |
+|---|---|---|
+| `管线脚本/verify_cors.js` | 3000 端口敌对源 → 8000 API | 5/5 通过 |
+| `管线脚本/verify_cors_file.js` | `file://` 双击打开 | 5/5 通过 |
+| `管线脚本/stress_concurrent.py` | 30 并发写 + 跨域头校验 | 30/30 通过 |
+
+## 错误处理
+
+- **全局异常兜底**：任何未捕获异常都会转成带 CORS 头的 JSON 500（`{"ok":false,"error":"服务端内部错误","detail":"..."}`），
+  并在控制台打印完整 traceback。
+  > 修复前异常会导致连接直接断开、不返回任何响应，前端只能拿到 `Failed to fetch`，
+  > 让人误判成网络故障，实际是服务端异常。
+- **输入校验**：所有用户输入经 `_s()` 统一转字符串并限长，非法类型降级为默认值而非抛异常。
+  > 修复前传 `{"text":{"a":1}}` 会因 `dict.strip()` 抛 AttributeError，现已返回 400 `技巧内容必填`。
+- **404 也有 CORS 头**：重写了 `send_error`，否则跨域下浏览器会先报 CORS 错误，把真正的 404 掩盖掉。
+
 ## 数据库怎么打开
 
 `valorant_community.db` 是成品库（表结构 + 数据 + 2 个中文列名视图都在里面）：
