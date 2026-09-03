@@ -6,3 +6,6 @@ __pycache__/
 **/creds/
 .env
 *.env
+
+# 该脚本内嵌了历史遗留的 COS 临时密钥（已过期），排除入库避免再次扩散
+ima_export/batch_upload.py

@@ -1,0 +1,26 @@
+#!/bin/sh
+# 提交前密钥扫描钩子
+#
+# 实际检查逻辑在 scripts/secrets_scan.py，命中即中断提交。
+# 本文件与扫描器都纳入版本控制，clone 后只需执行一次：
+#     git config core.hooksPath .githooks
+#
+# 紧急绕过（确知安全时使用）：git commit --no-verify
+
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+SCANNER="$ROOT/scripts/secrets_scan.py"
+
+# 扫描器缺失时不阻断提交
+[ -f "$SCANNER" ] || exit 0
+
+# 依次探测可用的 python 解释器（Windows 上 python 可能是应用商店占位符，需实测能否执行）
+for PY in python3 python py; do
+    if command -v "$PY" >/dev/null 2>&1; then
+        if "$PY" -c "import sys, io" >/dev/null 2>&1; then
+            exec "$PY" "$SCANNER"
+        fi
+    fi
+done
+
+echo "pre-commit: 未找到可用的 python，已跳过密钥扫描" >&2
+exit 0
