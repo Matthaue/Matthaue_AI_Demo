@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>CORS 真实浏览器验证</title>
+</head>
+<body>
+<h1>CORS 验证中…</h1>
+<pre id="out">running</pre>
+<script>
+// 本页部署在 http://localhost:3000，请求 http://127.0.0.1:8000
+// 浏览器视 localhost 与 127.0.0.1 为不同 host → 真实跨域，会严格执行 CORS 策略
+const API = 'http://127.0.0.1:8000';
+const log = [];
+window.__results = { logs: log };
+
+async function t(name, fn) {
+  try {
+    const r = await fn();
+    log.push({ name, pass: true, detail: r });
+  } catch (e) {
+    // 关键：区分「CORS 被浏览器拦截」与「服务端返回的业务错误」
+    const isCors = /Failed to fetch|NetworkError|CORS|blocked/i.test(e.message);
+    log.push({ name, pass: false, corsBlocked: isCors, detail: e.message });
+  }
+}
+
+(async () => {
+  // 1) 简单请求 GET
+  await t('GET /api/health', async () => {
+    const r = await fetch(API + '/api/health');
+    const d = await r.json();
+    return 'HTTP ' + r.status + ' counts=' + JSON.stringify(d.counts);
+  });
+
+  // 2) 非简单请求 POST（带 Content-Type: application/json → 触发 OPTIONS 预检）
+  await t('POST /api/submissions（触发预检）', async () => {
+    const r = await fetch(API + '/api/submissions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'hero', target: 'jett', text: 'CORS 浏览器实测投稿', author: 'CORS测试', user_id: 'u_corsbrowser' })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + JSON.stringify(d));
+    return 'HTTP ' + r.status + ' id=' + d.item.id;
+  });
+
+  // 3) 异常输入的 400（应能读到真实错误，而不是 CORS 错误）
+  await t('POST 异常输入（应返回 400 而非 CORS 错误）', async () => {
+    const r = await fetch(API + '/api/submissions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: { a: 1 } })
+    });
+    const d = await r.json();
+    return 'HTTP ' + r.status + ' error=' + d.error;
+  });
+
+  // 4) 静态资源 404（应能读到 404 状态，而非被 CORS 掩盖）
+  await t('GET 不存在的静态文件（应返回 404 而非 CORS 错误）', async () => {
+    const r = await fetch(API + '/__nope__.html');
+    return 'HTTP ' + r.status + '（CORS 头已放行，能读到真实状态码）';
+  });
+
+  // 5) DELETE（非简单方法，触发预检）
+  await t('OPTIONS 预检对 DELETE 是否放行', async () => {
+    const r = await fetch(API + '/api/submissions', { method: 'DELETE' });
+    const d = await r.json();
+    return 'HTTP ' + r.status + ' ok=' + d.ok;
+  });
+
+  document.getElementById('out').textContent = JSON.stringify(log, null, 2);
+  window.__done = true;
+})();
+</script>
+</body>
+</html>

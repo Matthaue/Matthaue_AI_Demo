@@ -5,7 +5,215 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- 内联 SVG 图标：file:// 双击打开时也能显示，不依赖后端 -->
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='13' fill='%23FE4553'/><path d='M13 15h12l7 24 7-24h12L36 49H27z' fill='%23fff'/></svg>">
-<title>补位急救站 · 工作台</title><link rel="stylesheet" href="assets/css/workbench.css">
+<title>补位急救站 · 工作台</title>
+<style>
+  :root{
+    --ink:#1a1d24; --sub:#5a6070; --line:#e3e6ec; --card:#f7f8fa;
+    --accent:#FE4553; --accent-bg:#FDEBEC; --warn-bg:#fdf3e7; --warn:#8a5a18;
+    --hero:#FE4553; --hero-bg:#FDEBEC;
+    --community:#7a4ba8; --community-bg:#f3edfa;
+    --map:#1f5f8b; --map-bg:#e9f2f9;
+    --ph:#c9cdd6; --star:#d97706;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Source Han Sans SC","Noto Sans SC","Microsoft YaHei",-apple-system,sans-serif;
+    color:var(--ink);background:#eef0f3;line-height:1.6;font-size:14px}
+  .wrap{max-width:880px;margin:0 auto;padding:24px 20px 60px;position:relative;z-index:1}
+
+  /* ---------- 背景水印：无畏契约 Logo（淡灰） ---------- */
+  .wm-bg{position:fixed;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;
+    pointer-events:none;overflow:hidden}
+  .wm-bg img{width:min(520px,80vw);height:auto;opacity:.08;filter:grayscale(100%) brightness(1.1);object-fit:contain}
+
+  header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+  h1{font-size:21px}
+  .sub{color:var(--sub);font-size:12.5px;margin-top:2px}
+  .badge{font-size:11px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:3px 12px;color:var(--sub)}
+
+  /* ---------- 顶部横向导航 ---------- */
+  .tabs{display:flex;gap:6px;background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:6px;margin-bottom:18px;flex-wrap:wrap}
+  .tab{flex:1;min-width:130px;padding:10px 12px;border:none;background:transparent;border-radius:10px;
+    font-weight:600;color:var(--sub);cursor:pointer;font-size:13.5px;transition:.15s;font-family:inherit}
+  .tab:hover{background:var(--card)}
+  .tab.active{color:#fff;background:var(--accent)}
+
+  .panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:18px}
+  .panel h3{font-size:15px;margin-bottom:12px}
+  .panel h3 small{font-weight:400;color:var(--sub);font-size:12px;margin-left:8px}
+
+  .drop{
+    border:2px dashed var(--ph);border-radius:12px;padding:22px 16px;text-align:center;
+    color:var(--sub);cursor:pointer;transition:.15s;background:var(--card)
+  }
+  .drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-bg)}
+  .drop b{color:var(--ink)}
+  .thumb{max-height:120px;border-radius:8px;margin-top:12px;border:1px solid var(--line)}
+
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+  select,button,input[type=text],input[type=password],textarea{
+    font:inherit;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+  select{min-width:150px}
+  textarea{width:100%;resize:vertical}
+  button{cursor:pointer}
+  .btn-main{background:var(--accent);color:#fff;border:none;font-weight:600}
+  .btn-main:hover{filter:brightness(1.08)}
+  .btn-ghost{background:#fff}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .btn-c{background:var(--accent);color:#fff;border:none;font-weight:600}
+  .btn-c:hover{filter:brightness(1.08)}
+
+  details{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px}
+  summary{cursor:pointer;color:var(--sub);font-size:13px}
+  .airow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .airow input[type=password]{flex:1;min-width:200px}
+  .status{font-size:12.5px;margin-top:10px;padding:8px 12px;border-radius:8px;display:none}
+  .status.ok{display:block;background:var(--accent-bg);color:var(--accent)}
+  .status.err{display:block;background:var(--warn-bg);color:var(--warn)}
+
+  /* ---------- 速记卡 ---------- */
+  #card{display:none}
+  .heroname{font-size:24px;font-weight:800}
+  .heroname small{font-size:13px;color:var(--sub);font-weight:400;margin-left:8px}
+  .rolechip{display:inline-block;font-size:11px;background:var(--accent-bg);color:var(--accent);
+    border-radius:999px;padding:2px 10px;margin-left:10px;vertical-align:middle}
+  .mapchip{display:inline-block;font-size:11px;background:var(--map-bg);color:var(--map);
+    border-radius:999px;padding:2px 10px;margin-left:6px;vertical-align:middle}
+  .oneliner{color:var(--sub);margin-top:4px}
+
+  .skill{display:grid;grid-template-columns:44px 110px 1fr 150px;gap:10px;align-items:center;
+    padding:12px 10px;border-bottom:1px dashed var(--line)}
+  .skillsec .skill:last-of-type{border-bottom:none}
+  .key{width:36px;height:36px;border-radius:9px;background:var(--ink);color:#fff;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:15px}
+  .key.x{background:var(--accent)}
+  .sname{font-weight:700}
+  .scost{font-size:11px;color:var(--sub)}
+  .sdesc{font-size:13.5px}
+  .gifbox{height:56px;border-radius:8px;border:1px dashed var(--ph);background:var(--card);
+    display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ph)}
+  .gifbox img{width:100%;height:100%;object-fit:cover;border-radius:8px}
+  @media(max-width:680px){.skill{grid-template-columns:44px 1fr;grid-auto-flow:dense}.gifbox,.sdesc{grid-column:2}}
+
+  .mapsec{margin-top:18px;border-top:2px solid var(--line);padding-top:14px}
+  .mapsec h4{font-size:15px;color:var(--map)}
+
+  .tips{background:var(--card);border-radius:10px;padding:14px 18px;margin-top:14px}
+  .tips h4{font-size:13px;color:var(--accent);margin-bottom:6px}
+  .mapsec .tips h4{color:var(--map)}
+  .tips li{font-size:13px;margin:6px 0 6px 18px}
+  .tip-badge{display:inline-block;font-size:10px;background:var(--community-bg);color:var(--community);
+    border-radius:4px;padding:1px 6px;margin-right:6px;vertical-align:1px}
+  .tip-link{font-size:12px;color:var(--map);margin-left:6px}
+
+  .vids{margin-top:14px}
+  .vids h4{font-size:13px;color:var(--sub);margin-bottom:8px}
+  .vidbtn{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;text-decoration:none;
+    border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:0 8px 8px 0;color:var(--ink)}
+  .vidbtn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+
+  /* ---------- Carousel 轮播滑块 ---------- */
+  .pagehead{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .pagehead h3{font-size:15px}
+  .pagehead h3 small{font-weight:400;color:var(--sub);font-size:12px;margin-left:8px}
+  .pagehead .note{font-size:11.5px;color:var(--sub)}
+  .carhead{display:flex;justify-content:space-between;align-items:center;margin:2px 0 8px}
+  .carhead .ttl{font-size:13px;font-weight:700;color:var(--sub)}
+  .carhead .ttl em{font-style:normal;color:var(--accent);font-weight:700}
+  .carhead .carnote{font-size:11.5px;color:var(--sub)}
+  .carousel{position:relative;margin:2px 0}
+  .carview{overflow:hidden;padding:2px 0 4px;touch-action:pan-y}
+  .cartrack{display:flex;gap:12px;transition:transform .5s cubic-bezier(.25,.8,.25,1);will-change:transform}
+  .cartrack.dragging{transition:none;cursor:grabbing}
+  .cartrack.dragging .cslide{user-select:none}
+  .cslide{flex:0 0 calc(50% - 6px);background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+  @media(max-width:680px){.cslide{flex-basis:100%}}
+  /* 轮播箭头（悬停卡片两侧，44×44 触控达标） */
+  .carbtn{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;
+    border:1px solid var(--line);background:#fff;color:var(--sub);cursor:pointer;z-index:2;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(15,23,42,.16);
+    transition:border-color .15s,color .15s,opacity .15s;font-family:inherit;padding:0}
+  .carbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .carbtn.prev{left:-16px}
+  .carbtn.next{right:-16px}
+  @media(max-width:680px){.carbtn.prev{left:2px}.carbtn.next{right:2px}}
+  /* 指示点（当前页为胶囊高亮） */
+  .cardots{display:flex;justify-content:center;gap:6px;margin:10px 0 4px;flex-wrap:wrap}
+  .cardots button{width:28px;height:24px;border:none;background:transparent;cursor:pointer;padding:0;
+    display:flex;align-items:center;justify-content:center}
+  .cardots button i{display:block;width:9px;height:9px;border-radius:99px;background:var(--ph);
+    transition:width .25s,background .25s}
+  .cardots button:hover i{background:var(--sub)}
+  .cardots button.on i{width:24px;background:var(--accent)}
+  .carousel.noslides .carbtn,.carousel.noslides .cardots{display:none}
+  .cslide .cname{font-size:16px;font-weight:800}
+  .cslide .cname small{font-size:11.5px;color:var(--sub);font-weight:400;margin-left:6px}
+  .cslide .cone{font-size:12.5px;color:var(--sub);min-height:38px}
+  .cslide .minis{font-size:12px;line-height:1.7;background:#fff;border-radius:8px;padding:8px 10px;flex:1}
+  .cslide .minis b{display:inline-block;width:18px;height:18px;line-height:18px;text-align:center;
+    border-radius:5px;background:var(--ink);color:#fff;font-size:10px;margin-right:6px}
+  .cslide .minis b.x{background:var(--accent)}
+  .cslide .ctips{font-size:12px;color:var(--sub);padding-left:16px}
+  .cslide .ctips li{margin:3px 0}
+  .cslide .cvids{margin-top:2px}
+  .cslide .goto{margin-top:auto;width:100%;padding:7px;border-radius:8px;font-size:12.5px}
+  .cslide.map .cname{color:var(--map)}
+  .cslide.comm .cname{color:var(--community)}
+  .cslide.comm .commtext{font-size:13px;font-weight:600;line-height:1.6;flex:1}
+  .cslide.comm .commmeta{font-size:11.5px;color:var(--sub)}
+
+  /* ---------- 社群投稿页 ---------- */
+  .formrow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  #page-community select{min-width:130px}
+  #page-community input[type=text]{flex:1;min-width:160px}
+  .feed{margin-top:8px}
+  .feed-item{border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:10px 0;background:#fff}
+  .feed-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .feed-type{font-size:11px;font-weight:700;color:var(--community);background:var(--community-bg);
+    border-radius:6px;padding:2px 8px}
+  .feed-type.map{color:var(--map);background:var(--map-bg)}
+  .srcbadge{display:inline-block;font-size:10px;font-weight:700;background:var(--community-bg);color:var(--community);
+    border-radius:4px;padding:1px 6px;margin-right:6px;vertical-align:1px}
+  .srcbadge.off{background:var(--accent-bg);color:var(--accent)}
+  .feed-text{font-size:13.5px;margin:8px 0 4px}
+  .feed-links{font-size:12px;margin-bottom:6px}
+  .feed-author{font-size:11.5px;color:var(--sub)}
+  .feed-author .demo{color:var(--star)}
+  .feed-actions{display:flex;gap:10px;margin-top:8px;border-top:1px dashed var(--line);padding-top:8px}
+  .actbtn{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:#fff;
+    border-radius:999px;padding:4px 12px;font-size:12.5px;color:var(--sub)}
+  .actbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .actbtn.liked{background:var(--accent-bg);border-color:var(--accent);color:var(--accent);font-weight:700}
+  .cmtsec{margin-top:8px;background:var(--card);border-radius:8px;padding:10px 12px;font-size:12.5px}
+  .cmtlist{max-height:130px;overflow-y:auto;margin-bottom:8px}
+  .cmt{background:#fff;border-radius:6px;padding:6px 10px;margin:4px 0;font-size:12.5px}
+  .cmt b{color:var(--accent);margin-right:6px}
+  .cmt .ts{color:var(--ph);font-size:10.5px;margin-left:6px}
+  .cmtempty{color:var(--ph);font-size:12px;padding:4px 0}
+  .cmtinput{display:flex;gap:6px}
+  .cmtinput input{flex:1;font-size:12.5px}
+  .cmtinput button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12.5px}
+
+  /* 数据源切换卡（本机 localStorage ↔ 后端 SQLite API） */
+  .dsbox{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+  .dsrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .dstitle{font-size:12px;font-weight:700;color:var(--sub);margin-right:2px}
+  .dsmode{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--sub);cursor:pointer;transition:.15s}
+  .dsmode:hover{border-color:var(--accent);color:var(--accent)}
+  .dsmode.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .dsbox input[type=text]{font-size:12px;padding:6px 10px;max-width:210px}
+  .dsstat{font-size:11.5px;color:var(--sub);display:inline-flex;align-items:center;gap:5px;margin-left:auto}
+  .dsstat .dot{width:8px;height:8px;border-radius:50%;background:var(--ph);display:inline-block}
+  .dsstat.on .dot{background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.15)}
+  .dsstat.off .dot{background:var(--accent);box-shadow:0 0 0 3px rgba(254,69,83,.15)}
+  .dsnote{font-size:11.5px;color:var(--sub);margin-top:8px;line-height:1.7}
+
+  .queuebox{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px}
+  .qcount{font-size:12px;color:var(--sub);margin-bottom:8px}
+
+  footer{color:var(--sub);font-size:11.5px;text-align:center;margin-top:26px;line-height:1.8}
+</style>
 </head>
 <body>
 <div class="wm-bg" aria-hidden="true">
@@ -223,17 +431,808 @@
   </footer>
 </div>
 
-  <!-- 按依赖顺序加载：内容库 → 工具 → 各功能模块 → 启动 -->
-<script src="assets/js/01-content-data.js"></script>
-<script src="assets/js/02-core.js"></script>
-<script src="assets/js/03-nav.js"></script>
-<script src="assets/js/04-carousel.js"></script>
-<script src="assets/js/05-data-service.js"></script>
-<script src="assets/js/06-datasource-ui.js"></script>
-<script src="assets/js/07-community.js"></script>
-<script src="assets/js/08-upload.js"></script>
-<script src="assets/js/09-recognize.js"></script>
-<script src="assets/js/10-card.js"></script>
-<script src="assets/js/11-main.js"></script>
+<script>
+/* ================= 内容库（与 hero_content_library.json 同构；正式版存于腾讯 ima valorantHeroKnow 共享知识库） ================= */
+const HEROES = [
+  {id:"jett",name_cn:"捷风",name_en:"Jett",role:"决斗者",
+   one_liner:"高机动刺客：位移进出场，靠身位拉扯换血，大招收割残局",
+   skills:{
+     Q:{name:"漂流",cost:"200",desc:"激活后向移动方向瞬间冲刺，烟雾中可二次使用",gif:""},
+     C:{name:"涌云",cost:"200",desc:"扔出烟云遮挡视野，配合漂流穿烟突进",gif:""},
+     E:{name:"上升气流",cost:"免费·冷却",desc:"双人高度的腾空跳跃，上高台拿枪线或躲技能",gif:""},
+     X:{name:"刀刃风暴",cost:"8点",desc:"换装飞刀：爆头直接击杀并回满飞刀，连续击杀非常强",gif:""}},
+   quick_tips:["进场先想好退路：Q/E 至少留一个保命","大招期间身位比枪法重要，优先侧翼切入","别用涌云当进攻烟，它是单点遮蔽不是控场烟"],
+   videos:[
+     {title:"捷风 入门教学（B站）",url:"https://search.bilibili.com/all?keyword=%E6%97%A0%E7%95%8F%E5%A5%91%E7%BA%A6%20%E6%8D%B7%E9%A3%8E%20%E6%95%99%E5%AD%A6"},
+     {title:"Jett 官方Wiki",url:"https://valorant.fandom.com/wiki/Jett"}]},
+  {id:"sage",name_cn:"贤者",name_en:"Sage",role:"哨卫",
+   one_liner:"治疗+控场辅助：墙分割战场，大招复活是全队最大的容错",
+   skills:{
+     Q:{name:"缓速球",cost:"200",desc:"区域减速+显示脚印，封路或保队友撤退",gif:""},
+     C:{name:"屏障球",cost:"400",desc:"竖起冰墙：挡枪线/堵人/垫脚上高点",gif:""},
+     E:{name:"治疗球",cost:"免费·冷却",desc:"长按治疗队友，短按治疗自己",gif:""},
+     X:{name:"复活",cost:"8点",desc:"复活阵亡队友（满血但武器为手枪），注意读条时机",gif:""}},
+   quick_tips:["墙别封队友枪线——起墙前看队友站位","大招留给关键人：决斗者/携带大哥武器的人","缓速球扔在敌人必经的转角，比扔脚下有用"],
+   videos:[
+     {title:"贤者 入门教学（B站）",url:"https://search.bilibili.com/all?keyword=%E6%97%A0%E7%95%8F%E5%A5%91%E7%BA%A6%20%E8%B4%A4%E8%80%85%20%E6%95%99%E5%AD%A6"},
+     {title:"Sage 官方Wiki",url:"https://valorant.fandom.com/wiki/Sage"}]},
+  {id:"reyna",name_cn:"蕾娜",name_en:"Reyna",role:"决斗者",
+   one_liner:"击杀滚雪球型单挑战士：一切强度建立在'打得死人'上",
+   skills:{
+     Q:{name:"吞噬",cost:"200",desc:"击杀后吸收魂魄快速回血（大招期间加速）",gif:""},
+     C:{name:"魔眼",cost:"250",desc:"放出魔眼让视野内敌人短暂近视，强开枪线用",gif:""},
+     E:{name:"消散",cost:"200",desc:"击杀后变无敌快速位移，撤出或换点位",gif:""},
+     X:{name:"女皇",cost:"6点",desc:"狂暴模式：大幅提升射速与换弹速度，击杀刷新吞噬/消散",gif:""}},
+   quick_tips:["蕾娜没有位移保命技能——进战前确认能打过","Q/E 的释放依赖击杀产生的魂魄，别空放","女皇大招期间主动找 1v1，避开多人交叉火力"],
+   videos:[
+     {title:"蕾娜 入门教学（B站）",url:"https://search.bilibili.com/all?keyword=%E6%97%A0%E7%95%8F%E5%A5%91%E7%BA%A6%20%E8%95%BE%E5%A8%9C%20%E6%95%99%E5%AD%A6"},
+     {title:"Reyna 官方Wiki",url:"https://valorant.fandom.com/wiki/Reyna"}]},
+  {id:"skye",name_cn:"斯凯",name_en:"Skye",role:"先锋",
+   one_liner:"驭兽先锋：闪光自带命中确认、袋狼可控探路，还能治疗队友的全能型辅助",
+   skills:{
+     Q:{name:"辟林之虎",cost:"300",desc:"放出并操控袋狼，再按射击扑击：震荡+伤害，探点开路两不误",gif:""},
+     C:{name:"愈生之息",cost:"150",desc:"按住引导治疗范围内视线内的队友（100 治疗池），不能治疗自己",gif:""},
+     E:{name:"引路之隼",cost:"250×2",desc:"放出可控飞鹰，再按引爆为闪光；致盲成功有命中提示音，闪完直接报点",gif:""},
+     X:{name:"追猎之灵",cost:"8点",desc:"放出 3 个追猎者追踪最近敌人，命中使其视野收缩；可被击毁",gif:""}},
+   quick_tips:["闪光听到命中确认音再喊队友拉枪线——这是斯凯比其他闪光强的地方","操控袋狼/飞鹰时本体站桩：先躲进掩体再操控，别站大马路上","愈生之息只奶队友不奶自己，残局别把它当贤者治疗球用"],
+   videos:[
+     {title:"斯凯 入门教学（B站）",url:"https://search.bilibili.com/all?keyword=%E6%97%A0%E7%95%8F%E5%A5%91%E7%BA%A6%20%E6%96%AF%E5%87%AF%20%E6%95%99%E5%AD%A6"},
+     {title:"Skye 官方Wiki",url:"https://valorant.fandom.com/wiki/Skye"}]},
+  {id:"fade",name_cn:"黑梦",name_en:"Fade",role:"先锋",
+   one_liner:"梦魇猎人：诡眼揭露位置、黯兽循迹追击，把敌方行踪摊在明面上的信息位",
+   skills:{
+     Q:{name:"幽爪",cost:"200",desc:"套索落地炸裂：束缚+致聋+腐坏（扣 75 上限生命），封路口/守拆包神技",gif:""},
+     C:{name:"黯兽",cost:"250×2",desc:"放出梦魇兽追击第一个敌人或恐惧轨迹，命中使其视野收缩",gif:""},
+     E:{name:"诡眼",cost:"免费·冷却",desc:"掷出诡眼爆裂，揭露视线内敌人并留下恐惧轨迹；可被击毁，落点要刁钻",gif:""},
+     X:{name:"夜临",cost:"8点",desc:"释放穿墙梦魇波：命中留下轨迹+致聋+腐坏，开团/收残局两用",gif:""}},
+   quick_tips:["先诡眼后黯兽：恐惧轨迹让黯兽加速追击，combo 命中率翻倍","幽爪扔包点或必经路口，进攻封回防、防守封拆包都好用","你打的是信息不是输出——轨迹全队可见，多报点少对枪"],
+   videos:[
+     {title:"黑梦 入门教学（B站）",url:"https://search.bilibili.com/all?keyword=%E6%97%A0%E7%95%8F%E5%A5%91%E7%BA%A6%20%E9%BB%91%E6%A2%A6%20%E6%95%99%E5%AD%A6"},
+     {title:"Fade 官方Wiki",url:"https://valorant.fandom.com/wiki/Fade"}]},
+  {id:"sova",name_cn:"猎枭",name_en:"Sova",role:"先锋",
+   one_liner:"战场侦察大师：寻敌箭+无人机拿信息，穿墙能量箭收割残局",
+   skills:{
+     Q:{name:"雷击箭",cost:"150×2",desc:"射出电击箭碰撞爆炸（中心最高 75 伤害），可蓄力延距、右键加弹射",gif:""},
+     C:{name:"枭型无人机",cost:"400",desc:"操控无人机侦察并发射定位镖标记敌人；操控期间本体站桩",gif:""},
+     E:{name:"寻敌箭",cost:"免费·冷却",desc:"箭矢落点声纳 3 次脉冲揭露范围内敌人；血量 20 会被打掉，落点要讲究",gif:""},
+     X:{name:"狂猎之怒",cost:"8点",desc:"3 发穿墙能量箭，每发 80 伤害并揭露命中者，清残局/逼位移",gif:""}},
+   quick_tips:["背熟每张图 2-3 个常用寻敌箭点位，比枪法更能赢下回合","看到敌方寻敌箭/无人机落地就打掉——都只有几十血","大招有弹道预警，收残血别贪满血；穿墙特性适合拆包时逼位"],
+   videos:[
+     {title:"猎枭 入门教学（B站）",url:"https://search.bilibili.com/all?keyword=%E6%97%A0%E7%95%8F%E5%A5%91%E7%BA%A6%20%E7%8C%8E%E6%9E%AD%20%E6%95%99%E5%AD%A6"},
+     {title:"Sova 官方Wiki",url:"https://valorant.fandom.com/wiki/Sova"}]},
+  {id:"kayo",name_cn:"KAY/O",name_en:"KAY/O",role:"先锋",
+   one_liner:"压制机器：一把匕首废掉范围内敌人全部技能，快爆闪光强开点",
+   skills:{
+     Q:{name:"闪存过载",cost:"250×2",desc:"闪光榴弹：左键上手投掷延时爆，右键下手快爆，致盲 2.25 秒",gif:""},
+     C:{name:"碎片溢出",cost:"200",desc:"粘地手雷连续 4 次爆炸（越靠中心越痛），清角落/守包点两用",gif:""},
+     E:{name:"零点嗅探",cost:"免费·冷却",desc:"掷出压制匕首，爆裂压制范围内敌人 8 秒无法用技能，并语音报人数",gif:""},
+     X:{name:"无效命令",cost:"8点",desc:"持续脉冲大范围压制+自身战斗强化；期间被击倒可由队友重启复活",gif:""}},
+   quick_tips:["E 刀有命中人数播报：0 人压制≈点位可能空，果断转点或 rush","右键快爆闪光自己拉出去打；左键长延时留给队友创造进场","对面奇乐/贤者这类技能守点位，你的刀就是全队开点信号弹"],
+   videos:[
+     {title:"KAY/O 入门教学（B站）",url:"https://search.bilibili.com/all?keyword=%E6%97%A0%E7%95%8F%E5%A5%91%E7%BA%A6%20KAY%2FO%20%E6%95%99%E5%AD%A6"},
+     {title:"KAY/O 官方Wiki",url:"https://valorant.fandom.com/wiki/KAY/O"}]}
+];
+
+const MAPS = [
+  {id:"ascent",name_cn:"亚海悬城",name_en:"Ascent",
+   one_liner:"中门决定全图节奏的双点图：中路失守，A/B 防守都难受",
+   tips:["中门是胜负手：开局优先争夺中路控制","A/B 大门可开关，开门音效是重要信息","守方善用门后枪线；攻方开点必须带技能"],
+   videos:[{title:"亚海悬城 攻略（B站）",url:"https://search.bilibili.com/all?keyword=%E6%97%A0%E7%95%8F%E5%A5%91%E7%BA%A6%20%E4%BA%9A%E6%B5%B7%E6%82%AC%E5%9F%8E%20%E6%94%BB%E7%95%A5"}]},
+  {id:"haven",name_cn:"隐世修所",name_en:"Haven",
+   one_liner:"三点图：信息比人数重要，别死守一个点",
+   tips:["三点分兵防守，换点响应速度要快","C 长廊枪线很长，先想好怎么过","听到转点信息立刻呼应，晚一步就是 3 打 2 逆转"],
+   videos:[{title:"隐世修所 攻略（B站）",url:"https://search.bilibili.com/all?keyword=%E6%97%A0%E7%95%8F%E5%A5%91%E7%BA%A6%20%E9%9A%90%E4%B8%96%E4%BF%AE%E6%89%80%20%E6%94%BB%E7%95%A5"}]},
+  {id:"split",name_cn:"霓虹町",name_en:"Split",
+   one_liner:"上下双层结构：控制中路绳索区 = 控制换线速度",
+   tips:["中路绳索区是攻防双方必争的枢纽","A 点高台易守难攻，进攻方带清点技能","防守别在 B 底层恋战，容易被包后路"],
+   videos:[{title:"霓虹町 攻略（B站）",url:"https://search.bilibili.com/all?keyword=%E6%97%A0%E7%95%8F%E5%A5%91%E7%BA%A6%20%E9%9C%93%E8%99%B9%E7%94%BA%20%E6%94%BB%E7%95%A5"}]},
+  {id:"icebox",name_cn:"森寒冬港",name_en:"Icebox",
+   one_liner:"垂直空间最多的图：站位先想清楚上下层关系",
+   tips:["垂直枪线多，走位时想清楚'谁在上面'","A 点管道区是攻方主路线，守方多留技能","守点技能留到对方进场瞬间再交，别提前浪费"],
+   videos:[{title:"森寒冬港 攻略（B站）",url:"https://search.bilibili.com/all?keyword=%E6%97%A0%E7%95%8F%E5%A5%91%E7%BA%A6%20%E6%A3%AE%E6%9E%97%E5%86%AC%E6%B8%AF%20%E6%94%BB%E7%95%A5"}]},
+  {id:"breeze",name_cn:"微风岛屿",name_en:"Breeze",
+   one_liner:"大开阔图：长枪线对枪比绕路更划算",
+   tips:["中路对枪优势大，狙和长枪优先拿中","守点靠烟与延迟技能，别裸站在开阔地","B 点入口多，信息位优先报点"],
+   videos:[{title:"微风岛屿 攻略（B站）",url:"https://search.bilibili.com/all?keyword=%E6%97%A0%E7%95%8F%E5%A5%91%E7%BA%A6%20%E5%BE%AE%E9%A3%8E%E5%B2%9B%E5%B1%BF%20%E6%94%BB%E7%95%A5"}]},
+  {id:"lotus",name_cn:"莲华古城",name_en:"Lotus",
+   one_liner:"带旋转门的三点图：转点节奏快，大招交点常在中门",
+   tips:["旋转门开合声音是关键信息，学会听","A 点水路很安静，留意脚步与绕后","三点图信息优先，技能别一次性交空"],
+   videos:[{title:"莲华古城 攻略（B站）",url:"https://search.bilibili.com/all?keyword=%E6%97%A0%E7%95%8F%E5%A5%91%E7%BA%A6%20%E8%8E%B2%E5%8D%8E%E5%8F%A4%E5%9F%8E%20%E6%94%BB%E7%95%A5"}]},
+  {id:"pearl",name_cn:"深海明珠",name_en:"Pearl",
+   one_liner:"无机关两点图：中路控制决定全图节奏",
+   tips:["中路拿下来，A/B 随时可以切换施压","A 点商店口与 B 主道是主要战场","防守方换位要早，别等破点才动"],
+   videos:[{title:"深海明珠 攻略（B站）",url:"https://search.bilibili.com/all?keyword=%E6%97%A0%E7%95%8F%E5%A5%91%E7%BA%A6%20%E6%B7%B1%E6%B5%B7%E6%98%8E%E7%8F%A0%20%E6%94%BB%E7%95%A5"}]}
+];
+
+/* ================= 元素 & 状态 ================= */
+const $=id=>document.getElementById(id);
+let imgDataUrl=null;
+let heroIdx=0, mapIdx=null;
+
+/* 下拉框 */
+HEROES.forEach((h,i)=>{const o=document.createElement("option");o.value=i;o.textContent=`英雄：${h.name_cn} ${h.name_en}`;$("heroSel").appendChild(o)});
+{const o=document.createElement("option");o.value=-1;o.textContent="地图：暂不选择";$("mapSel").appendChild(o)}
+MAPS.forEach((m,i)=>{const o=document.createElement("option");o.value=i;o.textContent=`地图：${m.name_cn} ${m.name_en}`;$("mapSel").appendChild(o)});
+
+/* 快捷切换 chips */
+HEROES.forEach(h=>{const c=document.createElement("span");c.className="chip";c.style.cssText="display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;margin:2px;cursor:pointer;background:#fff";
+  c.textContent=h.name_cn;c.onclick=()=>render(h.id,$("mapSel").value>=0?MAPS[$("mapSel").value].id:null);$("chips").appendChild(c)});
+
+/* ================= 顶部导航 ================= */
+function switchTab(name){
+  document.querySelectorAll(".tabpage").forEach(p=>p.style.display="none");
+  $("page-"+name).style.display="block";
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.page===name));
+  window.scrollTo({top:0,behavior:"smooth"});
+  refreshCarousels();   /* 页面从 display:none 变为可见后重测轮播尺寸 */
+}
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>switchTab(t.dataset.page));
+
+/* ================= Carousel 轮播滑块 ================= */
+/* 通用轮播引擎：滑轨平移 + 箭头翻页 + 指示点 + 自动轮播（悬停/隐藏页暂停）+ 拖拽跟手（边缘阻尼回弹）
+   数据层零改动：卡片渲染函数只负责往 .cartrack 里塞内容，翻页状态由引擎自行测量 */
+const CAROUSELS={};
+function setupCarousel(rootId,autoMs){
+  const root=$(rootId);
+  const view=root.querySelector(".carview");
+  const track=root.querySelector(".cartrack");
+  const dotsEl=root.querySelector(".cardots");
+  const prevBtn=root.querySelector(".carbtn.prev");
+  const nextBtn=root.querySelector(".carbtn.next");
+  const noteEl=root.parentElement?root.parentElement.querySelector(".carnote"):null;
+  const st={index:0,slides:0,maxIndex:0,step:0,timer:null};
+  const visible=()=>root.offsetParent!==null;
+
+  function apply(anim){
+    if(!anim){track.style.transition="none";requestAnimationFrame(()=>{track.style.transition=""})}
+    track.style.transform="translateX("+(-st.index*st.step)+"px)";
+    dotsEl.querySelectorAll("button").forEach((d,i)=>d.classList.toggle("on",i===st.index));
+    if(noteEl)noteEl.textContent=st.maxIndex>0?(st.slides+" 张 · 自动轮播 · 第 "+(st.index+1)+"/"+(st.maxIndex+1)+" 屏"):"";
+  }
+  function goTo(i,anim=true){
+    if(st.maxIndex<=0){st.index=0;apply(false);return}
+    if(i>st.maxIndex)i=0;          /* 尾页继续下一张 → 回到开头 */
+    if(i<0)i=st.maxIndex;          /* 首页继续上一张 → 跳到尾页 */
+    st.index=i;apply(anim);
+  }
+  function measure(){
+    const n=track.children.length;
+    st.slides=n;
+    /* 空内容或页面不可见（display:none 尺寸为 0）时不测量，等切页/resize 后重测 */
+    if(!n||!visible()){root.classList.add("noslides");st.maxIndex=0;st.index=0;st.step=0;if(noteEl)noteEl.textContent=n?n+" 张":"";return}
+    st.step=n>1?(track.children[1].offsetLeft-track.children[0].offsetLeft):view.clientWidth||1;
+    const perView=Math.max(1,Math.round(view.clientWidth/st.step));
+    st.maxIndex=Math.max(0,n-perView);
+    if(st.index>st.maxIndex)st.index=Math.max(0,st.maxIndex);
+    dotsEl.innerHTML="";
+    for(let i=0;i<=st.maxIndex;i++){
+      const b=document.createElement("button");
+      b.type="button";b.setAttribute("aria-label","定位到第 "+(i+1)+" 屏");
+      b.innerHTML="<i></i>";
+      b.onclick=()=>{goTo(i);restart()};
+      dotsEl.appendChild(b);
+    }
+    root.classList.toggle("noslides",st.maxIndex<=0);
+    apply(false);
+  }
+  function tick(){
+    if(document.hidden||!visible()||st.maxIndex<=0)return;
+    if(root.matches(":hover"))return;             /* 悬停暂停 */
+    goTo(st.index+1);
+  }
+  function restart(){clearInterval(st.timer);st.timer=setInterval(tick,autoMs||3600)}
+  prevBtn.onclick=()=>{goTo(st.index-1);restart()};
+  nextBtn.onclick=()=>{goTo(st.index+1);restart()};
+
+  /* 拖拽 / 触摸滑动（水平拖动跟手，垂直滑动放行给页面滚动） */
+  let sx=0,sy=0,dx=0,dragging=false,pid=null;
+  view.addEventListener("pointerdown",e=>{
+    if(st.maxIndex<=0)return;
+    if(e.pointerType==="mouse"&&e.button!==0)return;
+    pid=e.pointerId;sx=e.clientX;sy=e.clientY;dx=0;dragging=false;
+  });
+  view.addEventListener("pointermove",e=>{
+    if(pid===null||e.pointerId!==pid)return;
+    const mx=e.clientX-sx,my=e.clientY-sy;
+    if(!dragging){
+      if(Math.abs(mx)>8&&Math.abs(mx)>Math.abs(my)){
+        dragging=true;track.classList.add("dragging");
+        try{view.setPointerCapture(pid)}catch(_){}
+      }else if(Math.abs(my)>8){pid=null;return}
+      else return;
+    }
+    dx=mx;
+    let t=-st.index*st.step+dx;
+    if((st.index===0&&dx>0)||(st.index===st.maxIndex&&dx<0))t=-st.index*st.step+dx*0.35; /* 边缘阻尼 */
+    track.style.transform="translateX("+t+"px)";
+  });
+  function endDrag(){
+    if(pid===null)return;
+    pid=null;
+    if(!dragging)return;
+    dragging=false;track.classList.remove("dragging");
+    if(Math.abs(dx)>50)goTo(st.index+(dx<0?1:-1));
+    else apply(true);
+    restart();
+    if(Math.abs(dx)>8){ /* 拖拽后吞掉这次 click，避免误触发卡片里的链接/按钮 */
+      const kill=ev=>{ev.preventDefault();ev.stopPropagation()};
+      view.addEventListener("click",kill,{capture:true,once:true});
+      setTimeout(()=>view.removeEventListener("click",kill,{capture:true,once:true}),80);
+    }
+  }
+  view.addEventListener("pointerup",endDrag);
+  view.addEventListener("pointercancel",endDrag);
+
+  const api={measure,goTo,restart};
+  CAROUSELS[rootId]=api;
+  measure();restart();
+  return api;
+}
+/* 切换 Tab / 窗口尺寸变化后重测（display:none 时尺寸为 0，必须重新测量） */
+function refreshCarousels(){Object.values(CAROUSELS).forEach(c=>c.measure())}
+let _rzT=null;
+window.addEventListener("resize",()=>{clearTimeout(_rzT);_rzT=setTimeout(refreshCarousels,150)});
+
+function renderHeroCarousel(){
+  document.querySelector("#heroCarousel .cartrack").innerHTML=HEROES.map(h=>{
+    const minis=["Q","C","E","X"].map(k=>`<div><b class="${k==="X"?"x":""}">${k}</b>${esc(h.skills[k].name)}：${esc(h.skills[k].desc)}</div>`).join("");
+    return `<div class="cslide">
+      <div class="cname">${esc(h.name_cn)}<small>${esc(h.name_en)}</small><span class="rolechip">${esc(h.role)}</span></div>
+      <div class="cone">${esc(h.one_liner)}</div>
+      <div class="minis">${minis}</div>
+      <ul class="ctips">${h.quick_tips.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>
+      <div class="cvids">${h.videos.map(v=>`<a class="vidbtn" href="${esc(v.url)}" target="_blank" rel="noopener">▶ ${esc(v.title)}</a>`).join("")}</div>
+      <button class="btn-main goto" data-hero="${h.id}">查看速记卡 →</button>
+    </div>`;
+  }).join("");
+  document.querySelectorAll("#heroCarousel .goto").forEach(b=>b.onclick=()=>{
+    switchTab("station");
+    $("heroSel").value=HEROES.findIndex(x=>x.id===b.dataset.hero);
+    render(b.dataset.hero,$("mapSel").value>=0?MAPS[$("mapSel").value].id:null);
+  });
+  if(CAROUSELS.heroCarousel)CAROUSELS.heroCarousel.measure();
+}
+
+function renderMapCarousel(){
+  document.querySelector("#mapCarousel .cartrack").innerHTML=MAPS.map(m=>{
+    return `<div class="cslide map">
+      <div class="cname">${esc(m.name_cn)}<small>${esc(m.name_en)}</small><span class="mapchip">地图速记</span></div>
+      <div class="cone">${esc(m.one_liner)}</div>
+      <ul class="ctips">${m.tips.map(t=>`<li>${esc(typeof t==="string"?t:t.text)}</li>`).join("")}</ul>
+      <div class="cvids">${m.videos.map(v=>`<a class="vidbtn" href="${esc(v.url)}" target="_blank" rel="noopener">▶ ${esc(v.title)}</a>`).join("")}</div>
+      <button class="btn-main goto" data-map="${m.id}">查看速记卡 →</button>
+    </div>`;
+  }).join("");
+  document.querySelectorAll("#mapCarousel .goto").forEach(b=>b.onclick=()=>{
+    switchTab("station");
+    const mi=MAPS.findIndex(x=>x.id===b.dataset.map);
+    $("mapSel").value=mi;
+    render(HEROES[$("heroSel").value].id,mi>=0?MAPS[mi].id:null);
+  });
+  if(CAROUSELS.mapCarousel)CAROUSELS.mapCarousel.measure();
+}
+
+/* ================= 社群投稿（数据访问层：本机 localStorage ↔ 后端 SQLite 数据库） =================
+   界面与交互只有一套，底层数据源可切换 —— 这正是产品文档「内容层 / 状态层分层」的落地：
+     · 本机模式：状态层落在浏览器 localStorage，离线可用，零部署
+     · 后端模式：状态层落在 valorant_community.db（SQLite），由 Python 后端提供 REST API，
+                 多人共享同一份数据，点赞按 (submission_id, user_id) 幂等去重
+   后端不可用时自动降级回本机模式，功能不受影响（与 AI 识别降级同一设计原则）。            */
+const CKEY="communityTips";
+const LKEY="communityLiked";
+const UIDKEY="vuid";
+const DSMODE="dsmode";
+const DSBASE="dsbase";
+/* 匿名用户ID：首次进入自动生成并保存在本机，后续投稿自动携带（真实产品接入账号体系后替换为登录ID） */
+let myUid=localStorage.getItem(UIDKEY)||("u_"+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+localStorage.setItem(UIDKEY,myUid);
+let cTips=[];                                  /* 运行时数据：两种模式共用同一内存结构 */
+let liked=new Set();                           /* 我已点赞的投稿 id（后端模式由接口 liked 字段同步） */
+
+/* 本机模式的初始示例数据（后端模式由数据库提供，不注入） */
+const DEMO_TIPS=[
+  {id:"demo-1",type:"hero",target:"jett",text:"捷风 E 上升气流可以卡在箱子沿，先 E 再 Q 穿烟能拿到更高的枪线视角",gif:"",video:"",author:"阿P的枪线笔记",demo:true,source:"user",user_id:"u_demo_001",ts:"2026-08-20",likes:23,comments:[{author:"路过的青铜",text:"试了一下真的能白拿视角，学会了",ts:"2026-08-21"}]},
+  {id:"demo-2",type:"map",target:"ascent",text:"亚海悬城守方开局直接关 B 门，对方只能从中路和 A 主推，信息压力小一半",gif:"",video:"",author:"老图手",demo:true,source:"user",user_id:"u_demo_002",ts:"2026-08-21",likes:17,comments:[]},
+  {id:"demo-3",type:"hero",target:"sage",text:"贤者的墙可以横在 A 短垫脚上箱，配合大招读条更稳，队友别站在墙后吃枪线",gif:"",video:"",author:"冰墙工程师",demo:true,source:"user",user_id:"u_demo_003",ts:"2026-08-22",likes:31,comments:[{author:"瓦学十级",text:"补充：墙别急着立，等对面道具交了再立更赚",ts:"2026-08-23"}]}
+];
+function persist(){localStorage.setItem(CKEY,JSON.stringify(cTips))}
+function today(){return new Date().toISOString().slice(0,10)}
+
+/* ============ 数据访问层：界面只认这一层接口，换存储实现不动 UI ============ */
+const DataService={
+  mode:localStorage.getItem(DSMODE)||"local",          /* "local" | "api" */
+  base:(localStorage.getItem(DSBASE)||"http://127.0.0.1:8000").replace(/\/+$/,""),
+  online:false,
+  stats:null,
+
+  /* 统一请求出口：超时 6 秒，便于后端未启动时快速降级 */
+  async _req(path,opt={}){
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),6000);
+    try{
+      const r=await fetch(this.base+path,{
+        method:opt.method||"GET",
+        headers:{"Content-Type":"application/json"},
+        signal:ctrl.signal,
+        ...(opt.body?{body:JSON.stringify(opt.body)}:{})
+      });
+      if(!r.ok)throw new Error("HTTP "+r.status);
+      return await r.json();
+    }catch(e){
+      if(e.name==="AbortError")throw new Error("请求超时（6s），后端可能未启动");
+      throw new Error(e.message||"网络错误");
+    }finally{clearTimeout(timer)}
+  },
+
+  setMode(m){this.mode=m;localStorage.setItem(DSMODE,m)},
+  setBase(b){this.base=(b||"").trim().replace(/\/+$/,"");localStorage.setItem(DSBASE,this.base)},
+
+  /* 健康检查：后端模式返回库内各表行数 */
+  async health(){
+    if(this.mode!=="api")return{ok:true,mode:"local"};
+    const d=await this._req("/api/health");
+    this.stats=d.counts;return{...d,mode:"api"};
+  },
+
+  /* 拉取投稿列表，同时同步「我已点赞」状态 */
+  async list(){
+    if(this.mode!=="api"){
+      cTips=JSON.parse(localStorage.getItem(CKEY)||"[]");
+      if(!cTips.length){cTips=DEMO_TIPS.map(x=>JSON.parse(JSON.stringify(x)));persist()}
+      liked=new Set(JSON.parse(localStorage.getItem(LKEY)||"[]"));
+      return cTips;
+    }
+    const d=await this._req("/api/submissions?user_id="+encodeURIComponent(myUid));
+    cTips=(d.items||[]).map(t=>({...t,demo:!!t.demo}));
+    liked=new Set(cTips.filter(t=>t.liked).map(t=>t.id));
+    return cTips;
+  },
+
+  async add(p){
+    if(this.mode!=="api"){
+      const item={id:"u"+Date.now(),...p,source:"user",likes:0,comments:[]};
+      cTips.push(item);persist();return item;
+    }
+    const d=await this._req("/api/submissions",{method:"POST",body:p});
+    return d.item;
+  },
+
+  /* 点赞：后端按 (submission_id,user_id) 幂等，重复点击不会导致计数漂移 */
+  async like(id,next){
+    if(this.mode!=="api"){
+      const t=cTips.find(x=>x.id===id);if(!t)return;
+      if(next&&!liked.has(id)){liked.add(id);t.likes=(t.likes||0)+1}
+      else if(!next&&liked.has(id)){liked.delete(id);t.likes=Math.max(0,(t.likes||0)-1)}
+      localStorage.setItem(LKEY,JSON.stringify([...liked]));persist();return;
+    }
+    const d=await this._req("/api/submissions/"+encodeURIComponent(id)+"/like",
+      {method:"POST",body:{user_id:myUid,liked:!!next}});
+    const t=cTips.find(x=>x.id===id);if(t)t.likes=d.likes;
+    if(d.liked)liked.add(id);else liked.delete(id);
+  },
+
+  /* 返回最新评论列表：调用方用它替换本地乐观插入的占位，避免两种模式下重复插入 */
+  async comment(id,text){
+    if(this.mode!=="api"){
+      const t=cTips.find(x=>x.id===id);if(!t)return null;
+      t.comments=(t.comments||[]).filter(c=>!c._pending);
+      t.comments.push({author:"我",text,ts:today()});persist();
+      return t.comments;
+    }
+    const d=await this._req("/api/submissions/"+encodeURIComponent(id)+"/comments",
+      {method:"POST",body:{author:"我",text}});
+    const t=cTips.find(x=>x.id===id);if(t)t.comments=d.comments;
+    return d.comments;
+  },
+
+  async clear(){
+    if(this.mode!=="api"){
+      cTips=[];liked=new Set();
+      localStorage.setItem(CKEY,"[]");localStorage.setItem(LKEY,"[]");return;
+    }
+    await this._req("/api/submissions",{method:"DELETE"});
+  },
+
+  /* 重置演示数据（仅后端模式：用 SQL 脚本重建 21 链接 + 4 投稿 + 3 评论 + 5 点赞） */
+  async reset(){
+    if(this.mode!=="api")throw new Error("本机模式不支持重置，请点「清空本机投稿」后刷新");
+    return await this._req("/api/reset",{method:"POST"});
+  },
+
+  /* 攻略/教学链接（内容层）——后端模式走接口，本机模式直接用内置内容库 */
+  async docs(target){
+    if(this.mode!=="api")return null;
+    const d=await this._req("/api/content_docs?target="+encodeURIComponent(target));
+    return d.items||[];
+  },
+
+  /* 导出 ima 入库投稿包：后端模式直接由库导出，保证与数据库一致 */
+  async exportPack(){
+    if(this.mode!=="api")return null;
+    return await this._req("/api/export");
+  }
+};
+
+/* 载入数据；后端模式失败则自动降级为本机模式 */
+async function loadCommunity(){
+  try{
+    await DataService.list();
+    DataService.online=(DataService.mode==="api");
+    /* 后端模式再取一次库内统计，用于在数据源卡片显示「链接 21 · 投稿 4 · 评论 3 · 点赞 5」 */
+    if(DataService.online){
+      try{await DataService.health()}catch(e){DataService.stats=null}
+    }
+    return true;
+  }catch(e){
+    if(DataService.mode==="api"){
+      DataService.setMode("local");
+      await DataService.list();
+      DataService.online=false;
+      syncModeUI();
+      cshow("err","后端连接失败（"+e.message+"）——已自动降级为本机模式，功能不受影响。启动后端：python backend/server.py");
+      return false;
+    }
+    throw e;
+  }
+}
+/* 刷新：重新拉数据 → 重绘投稿流 → 重绘速记卡（速记卡里的社群投稿同步更新） */
+async function refreshCommunity(){
+  await loadCommunity();
+  renderCommunity();
+  rerender();
+}
+
+/* ============ 数据源模式切换 UI ============ */
+function statLine(){
+  const s=DataService.stats;
+  if(!s)return "SQLite";
+  return `链接 ${s.content_docs??"-"} · 投稿 ${s.submissions??"-"} · 评论 ${s.comments??"-"} · 点赞 ${s.likes??"-"}`;
+}
+function syncModeUI(){
+  const isApi=DataService.mode==="api";
+  document.querySelectorAll(".dsmode").forEach(b=>
+    b.classList.toggle("active",b.dataset.mode===DataService.mode));
+  const box=$("dsStat"),txt=$("dsStatText");
+  box.className="dsstat "+(isApi?(DataService.online?"on":"off"):"");
+  txt.textContent=!isApi?"本机模式 localStorage"
+    :(DataService.online?"已连接 · "+statLine():"后端未连接 · 已降级本机");
+  if($("apiBase").value!==DataService.base)$("apiBase").value=DataService.base;
+  $("cReset").style.display=isApi?"":"none";       /* 重置演示数据仅后端模式可用 */
+}
+/* 切换模式：切到后端模式会立即拉一次数据，失败自动降级 */
+document.querySelectorAll(".dsmode").forEach(b=>b.onclick=async()=>{
+  const m=b.dataset.mode;
+  if(m===DataService.mode)return;
+  if(m==="api")DataService.setBase($("apiBase").value);
+  DataService.setMode(m);
+  syncModeUI();
+  await refreshCommunity();
+  syncModeUI();
+  if(m==="api"&&DataService.online)cshow("ok","已切到后端数据库模式 · "+statLine());
+  if(m==="local")cshow("ok","已切到本机模式，数据存在浏览器 localStorage（离线可用）");
+});
+$("apiBase").onchange=()=>DataService.setBase($("apiBase").value);
+/* 测试连接：不改当前模式，只探测后端是否可达；成功则顺带切过去 */
+$("dsTest").onclick=async()=>{
+  DataService.setBase($("apiBase").value);
+  const prev=DataService.mode;
+  DataService.mode="api";
+  const btn=$("dsTest");btn.disabled=true;btn.textContent="测试中…";
+  try{
+    const h=await DataService.health();
+    DataService.stats=h.counts;DataService.online=true;
+    if(prev!=="api"){DataService.setMode("api");await refreshCommunity()}
+    syncModeUI();
+    cshow("ok","连接成功 · "+statLine()+" —— 已切换到后端数据库模式");
+  }catch(e){
+    DataService.mode=prev;DataService.online=false;syncModeUI();
+    cshow("err","连接失败："+e.message+" —— 请先双击 backend/start_server.bat 启动后端");
+  }finally{btn.disabled=false;btn.textContent="测试连接"}
+};
+
+function fillCTarget(){
+  const isHero=$("cType").value==="hero";
+  const src=isHero?HEROES:MAPS;
+  $("cTarget").innerHTML=src.map(x=>`<option value="${x.id}">${x.name_cn} ${x.name_en||""}</option>`).join("");
+}
+$("cType").onchange=fillCTarget;fillCTarget();
+
+$("cSubmit").onclick=async()=>{
+  const text=$("cText").value.trim();
+  if(!text){cshow("err","技巧内容必填——一句话就够");return}
+  /* 来源标注：用户上传（官方条目在内容库中标记 source:"official"）；元数据：用户ID/时间/点赞/评论随条目保存 */
+  const payload={type:$("cType").value,target:$("cTarget").value,text,
+    gif:$("cGif").value.trim(),video:$("cVideo").value.trim(),
+    author:$("cAuthor").value.trim()||"匿名玩家",
+    source:"user",user_id:myUid,ts:today()};
+  const btn=$("cSubmit");btn.disabled=true;btn.textContent="提交中…";
+  try{
+    await DataService.add(payload);
+    await refreshCommunity();
+    $("cText").value="";$("cGif").value="";$("cVideo").value="";
+    const where=DataService.mode==="api"?"已写入 valorant_community.db 数据库":"已进入本机队列";
+    cshow("ok","投稿成功："+where+"并记录元数据（来源=用户上传 · 用户ID="+myUid+" · 时间="+today()+"），即时出现在速记卡与投稿流中；「导出投稿包」后可经审核同步到 ima");
+  }catch(e){
+    cshow("err","投稿失败："+e.message);
+  }finally{btn.disabled=false;btn.textContent="提交投稿"}
+};
+function cshow(type,msg){const s=$("cStatus");s.className="status "+type;s.textContent=msg}
+
+$("cClear").onclick=async()=>{
+  const isApi=DataService.mode==="api";
+  if(!confirm(isApi?"将清空数据库中的全部投稿与点赞/评论数据（可用「重置演示数据」恢复）。确定？"
+                   :"清空后本机投稿与示例将全部删除，且不可恢复。确定？"))return;
+  try{
+    await DataService.clear();
+    await refreshCommunity();
+    cshow("ok",isApi?"已清空数据库投稿与互动数据（点「重置演示数据」可恢复）":"已清空本机投稿队列（含示例）");
+  }catch(e){cshow("err","清空失败："+e.message)}
+};
+
+/* 重置演示数据（仅后端模式可用） */
+$("cReset").onclick=async()=>{
+  if(!confirm("将用 SQL 脚本重建演示数据：21 条攻略链接 + 4 条投稿 + 3 条评论 + 5 条点赞，当前数据会被覆盖。确定？"))return;
+  try{
+    await DataService.reset();
+    await refreshCommunity();
+    cshow("ok","已重置为初始演示数据，并重新连接数据库");
+  }catch(e){cshow("err","重置失败："+e.message)}
+};
+
+$("cExport").onclick=async()=>{
+  try{
+    let pack;
+    if(DataService.mode==="api"){
+      /* 后端模式：直接由数据库导出，保证投稿包与库内数据完全一致 */
+      pack=await DataService.exportPack();
+      if(!pack)throw new Error("导出失败");
+    }else{
+      if(!cTips.length){cshow("err","投稿队列为空，先提交一条试试");return}
+      pack={kb:"valorantHeroKnow",exported:today(),
+        note:"社群投稿包：每条含来源标注(source: official|user)与完整元数据(user_id/ts/likes/comments)。用户上传条目经人工审核后，按 ima 条目模板（来源标注 + 元数据表）写入腾讯 ima 共享知识库 valorantHeroKnow；demo 字段为示例数据，入库前请剔除",
+        entries:cTips.map(t=>({type:t.type,target:t.target,text:t.text,gif:t.gif,video:t.video,
+          source:t.source||(t.demo?"user":"official"),
+          user_id:t.user_id||"",author:t.author,ts:t.ts,likes:t.likes||0,
+          comments:(t.comments||[]).map(c=>({author:c.author,text:c.text,ts:c.ts}))}))};
+    }
+    const blob=new Blob([JSON.stringify(pack,null,2)],{type:"application/json"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+    a.download="community_tips_pack.json";a.click();
+    cshow("ok",`已导出 ${(pack.entries||[]).length} 条投稿（含来源标注与元数据）——审核后按 ima 条目模板入库`);
+  }catch(e){cshow("err","导出失败："+e.message)}
+};
+
+/* 点赞 / 评论 —— 两种模式都只走 DataService，界面层不碰存储实现 */
+async function toggleLike(id){
+  const t=cTips.find(x=>x.id===id);if(!t)return;
+  const next=!liked.has(id);
+  /* 乐观更新：立即反馈，请求失败再回滚，避免网络延迟造成"点了没反应" */
+  if(next){liked.add(id);t.likes=(t.likes||0)+1}
+  else{liked.delete(id);t.likes=Math.max(0,(t.likes||0)-1)}
+  renderCommunity();
+  try{
+    await DataService.like(id,next);
+    renderCommunity();
+  }catch(e){
+    if(next){liked.delete(id);t.likes=Math.max(0,(t.likes||0)-1)}
+    else{liked.add(id);t.likes=(t.likes||0)+1}
+    renderCommunity();
+    cshow("err","点赞同步失败："+e.message);
+  }
+}
+async function addComment(id,text){
+  const t=cTips.find(x=>x.id===id);if(!t)return;
+  t.comments=t.comments||[];
+  t.comments.push({author:"我",text,ts:today(),_pending:true});   /* 乐观占位，成功后被真实列表替换 */
+  renderCommunity();
+  try{
+    const latest=await DataService.comment(id,text);
+    if(latest)t.comments=latest;
+  }catch(e){
+    t.comments=t.comments.filter(c=>!c._pending);
+    cshow("err","评论失败："+e.message);
+  }
+  renderCommunity();
+  const el=$("cmt-"+id);if(el)el.style.display="block";   /* 发完保持评论区展开 */
+}
+function toggleCmt(id){
+  const el=$("cmt-"+id);
+  if(el)el.style.display=el.style.display==="none"?"block":"none";
+}
+
+function renderCommunity(){
+  renderCommCarousel();renderFeed();
+  const demoN=cTips.filter(t=>t.demo).length;
+  $("qCount").textContent=DataService.mode==="api"
+    ? `数据库投稿：${cTips.length} 条（读写 valorant_community.db，含示例 ${demoN} 条）`
+    : `本机投稿队列：${cTips.length} 条（含示例 ${demoN} 条）`;
+}
+
+/* 社群轮播 */
+function renderCommCarousel(){
+  const list=[...cTips].reverse().slice(0,8);
+  document.querySelector("#commCarousel .cartrack").innerHTML=list.map(t=>{
+    const name=(t.type==="hero"?HEROES:MAPS).find(x=>x.id===t.target);
+    return `<div class="cslide comm">
+      <div class="cname"><span class="feed-type ${t.type}">${t.type==="hero"?"英雄":"地图"}</span> ${name?esc(name.name_cn):esc(t.target)}</div>
+      <div class="commtext">“${esc(t.text)}”</div>
+      <div class="commmeta">👍 ${t.likes||0} · 💬 ${(t.comments||[]).length}${t.gif?` · <a class="tip-link" href="${esc(t.gif)}" target="_blank" rel="noopener">↗ 动图</a>`:""}${t.video?` · <a class="tip-link" href="${esc(t.video)}" target="_blank" rel="noopener">↗ 视频</a>`:""}</div>
+      <div class="commmeta"><span class="srcbadge ${t.source==="official"?"off":""}">${t.source==="official"?"官网来源":"用户上传"}</span>— ${esc(t.author)}${t.demo?" <span class=\"demo\" style=\"color:var(--star)\">示例</span>":""}</div>
+    </div>`;
+  }).join("")||"<div style='flex:1;color:var(--ph);font-size:12.5px;padding:20px;text-align:center'>还没有投稿，来发第一条技巧吧</div>";
+  if(CAROUSELS.commCarousel)CAROUSELS.commCarousel.measure();
+}
+
+/* 投稿流（点赞 + 评论） */
+function renderFeed(){
+  const list=[...cTips].reverse();
+  $("commFeed").innerHTML=list.map(t=>{
+    const name=(t.type==="hero"?HEROES:MAPS).find(x=>x.id===t.target);
+    const isLiked=liked.has(t.id);
+    const cmts=(t.comments||[]).map(c=>`<div class="cmt"><b>${esc(c.author)}</b>${esc(c.text)}<span class="ts">${c.ts}</span></div>`).join("")||"<div class='cmtempty'>还没有评论，抢个沙发</div>";
+    return `<div class="feed-item">
+      <div class="feed-top">
+        <span class="feed-type ${t.type}">${t.type==="hero"?"英雄":"地图"} · ${name?esc(name.name_cn):esc(t.target)}</span>
+        <span class="feed-author">${t.demo?"<span class='demo'>⭐ 示例</span> ":""}<span class="srcbadge ${t.source==="official"?"off":""}">${t.source==="official"?"官网来源":"用户上传"}</span>${esc(t.author)} · ${t.ts}</span>
+      </div>
+      <div class="feed-text">${esc(t.text)}</div>
+      <div class="feed-links">${t.gif?`<a class="tip-link" href="${esc(t.gif)}" target="_blank" rel="noopener">↗ 技巧动图</a>`:""}${t.video?`<a class="tip-link" href="${esc(t.video)}" target="_blank" rel="noopener">↗ 教学视频</a>`:""}</div>
+      <div class="feed-actions">
+        <button class="actbtn ${isLiked?"liked":""}" data-like="${t.id}">👍 <span>${t.likes||0}</span>${isLiked?" 已赞":""}</button>
+        <button class="actbtn" data-cmt="${t.id}">💬 <span>${(t.comments||[]).length}</span> 评论</button>
+      </div>
+      <div class="cmtsec" id="cmt-${t.id}" style="display:none">
+        <div class="cmtlist">${cmts}</div>
+        <div class="cmtinput">
+          <input type="text" placeholder="友善交流，给出你的补充…" data-cid="${t.id}">
+          <button data-add="${t.id}">发送</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("")||"<div style='color:var(--ph);font-size:12.5px;padding:20px;text-align:center'>还没有投稿，来发第一条技巧吧</div>";
+
+  document.querySelectorAll("[data-like]").forEach(b=>b.onclick=()=>toggleLike(b.dataset.like));
+  document.querySelectorAll("[data-cmt]").forEach(b=>b.onclick=()=>toggleCmt(b.dataset.cmt));
+  document.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{
+    const inp=document.querySelector(`input[data-cid="${b.dataset.add}"]`);
+    const txt=(inp.value||"").trim();
+    if(!txt)return;
+    addComment(b.dataset.add,txt);
+  });
+}
+
+function communityFor(type,id){return cTips.filter(t=>t.type===type&&t.target===id)}
+
+/* ================= 上传 & 粘贴 ================= */
+$("drop").onclick=()=>$("file").click();
+$("file").onchange=e=>loadFile(e.target.files[0]);
+document.addEventListener("paste",e=>{
+  const item=[...(e.clipboardData||{items:[]}).items].find(i=>i.type.startsWith("image/"));
+  if(item)loadFile(item.getAsFile());
+});
+["dragover","dragleave","drop"].forEach(ev=>$("drop").addEventListener(ev,e=>{
+  e.preventDefault();$("drop").classList.toggle("over",ev==="dragover");
+  if(ev==="drop"&&e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);
+}));
+function loadFile(f){
+  if(!f||!f.type.startsWith("image/"))return;
+  const r=new FileReader();
+  r.onload=()=>{imgDataUrl=r.result;$("thumbbox").innerHTML=`<img class="thumb" src="${imgDataUrl}">`;
+    show("ok",`截图已载入（${(f.size/1024).toFixed(0)}KB）——点「AI 识别截图」可同时识别英雄与地图`)};
+  r.readAsDataURL(f);
+}
+function show(type,msg){const s=$("status");s.className="status "+type;s.textContent=msg}
+
+/* ================= AI 识别（可选，英雄+地图） ================= */
+$("saveKey").onclick=()=>{localStorage.setItem("vkey",$("apikey").value.trim());show("ok","Key 已保存在本机")};
+$("apikey").value=localStorage.getItem("vkey")||"";
+
+$("aiBtn").onclick=async()=>{
+  const key=($("apikey").value||"").trim();
+  if(!imgDataUrl)return show("err","请先上传或 Ctrl+V 粘贴一张加载界面截图");
+  if(!key)return show("err","未配置模型 Key —— 可先用手动选择流程体验完整功能，或展开「AI 识别设置」填入 Key");
+  show("ok","识别中…（约 3–8 秒）");
+  const hlist=HEROES.map(h=>`${h.name_cn}/${h.name_en}`).join("、");
+  const mlist=MAPS.map(m=>`${m.name_cn}/${m.name_en}`).join("、");
+  const prompt=`这是游戏《无畏契约(VALORANT)》的对局加载/选人界面截图。请从以下英雄列表中识别出"我"（本方队伍）所选的英雄：[${hlist}]；并从以下地图列表中识别对局地图：[${mlist}]。只返回JSON：{"hero_en":"英雄英文ID或null","map_en":"地图英文ID或null","confidence":0到1的小数}，不要其他文字。`;
+  try{
+    let text="";
+    if($("provider").value==="openai"){
+      const r=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
+        body:JSON.stringify({model:"gpt-4o",messages:[{role:"user",content:[
+          {type:"text",text:prompt},{type:"image_url",image_url:{url:imgDataUrl}}]}],max_tokens:100})});
+      if(!r.ok)throw new Error("OpenAI 接口返回 "+r.status+"（检查 Key/余额）");
+      text=(await r.json()).choices[0].message.content;
+    }else{
+      const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="+key,
+        {method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:"image/jpeg",data:imgDataUrl.split(",")[1]}}]}]})});
+      if(!r.ok)throw new Error("Gemini 接口返回 "+r.status+"（检查 Key）");
+      text=(await r.json()).candidates[0].content.parts[0].text;
+    }
+    const m=text.match(/\{[\s\S]*\}/);if(!m)throw new Error("模型未返回有效JSON");
+    const j=JSON.parse(m[0]);
+    const h=HEROES.find(x=>x.id===j.hero_en||x.name_en===j.hero_en||x.name_cn===j.hero_en);
+    const mp=MAPS.find(x=>x.id===j.map_en||x.name_en===j.map_en||x.name_cn===j.map_en);
+    if(!h){
+      show("err","识别置信度低 —— 已降级：请直接手动选择英雄（这正是设计的兜底路径）");
+      $("card").style.display="none";return;
+    }
+    if(mp){const mi=MAPS.indexOf(mp);if(mi>=0)$("mapSel").value=mi}
+    show("ok",`识别为「${h.name_cn}」${mp?" · 地图「"+mp.name_cn+"」":""}（置信度 ${(j.confidence*100||"?").toString().slice(0,4)}%）—— 已生成速记卡，识别错了点右上角换一个`);
+    render(h.id,mp?mp.id:null);
+  }catch(err){show("err","识别失败："+err.message+" —— 降级为手动选择，功能不受影响")}
+};
+
+/* ================= 渲染速记卡 ================= */
+$("goBtn").onclick=()=>{
+  const h=HEROES[$("heroSel").value],m=$("mapSel").value>=0?MAPS[$("mapSel").value]:null;
+  render(h.id,m?m.id:null);
+  show("ok","已按手动选择生成（降级入口永远可用）");
+};
+function rerender(){if($("card").style.display==="block"){render(HEROES[heroIdx].id,mapIdx?mapIdx.id:null)}}
+
+function render(id,mapId){
+  const h=HEROES.find(x=>x.id===id);if(!h)return;
+  const mp=mapId?MAPS.find(x=>x.id===mapId):null;
+  heroIdx=HEROES.indexOf(h);mapIdx=mp;
+  $("card").style.display="block";
+  $("hName").innerHTML=`${h.name_cn}<small>${h.name_en} · ${h.role}</small><span class="rolechip">英雄速记</span>${mp?`<span class="mapchip">${mp.name_cn}</span>`:""}`;
+  $("hOne").textContent=h.one_liner;
+
+  $("skills").innerHTML=["Q","C","E","X"].map(k=>{
+    const s=h.skills[k];
+    const gif=s.gif?`<img src="${s.gif}" alt="${s.name}">`:"动图占位 · 自录后回填URL";
+    return `<div class="skill">
+      <div class="key ${k==="X"?"x":""}">${k}</div>
+      <div><div class="sname">${s.name}</div><div class="scost">${s.cost}</div></div>
+      <div class="sdesc">${s.desc}</div>
+      <div class="gifbox">${gif}</div>
+    </div>`}).join("");
+
+  /* 英雄提示 = 官方整理 + 社群投稿 */
+  const ch=communityFor("hero",h.id);
+  $("tipsList").innerHTML=h.quick_tips.map(t=>`<li>${t}</li>`).join("")
+    +(ch.length?ch.map(t=>`<li><span class="tip-badge">社群投稿</span>${esc(t.text)}${t.gif?` <a class="tip-link" href="${esc(t.gif)}" target="_blank" rel="noopener">↗ 动图</a>`:""}${t.video?` <a class="tip-link" href="${esc(t.video)}" target="_blank" rel="noopener">↗ 视频</a>`:""} <span style="color:var(--sub);font-size:11px">— ${esc(t.author)} · ID:${esc(t.user_id||"")}</span></li>`).join(""):"");
+
+  /* 英雄视频 = 官方 + 社群投稿的视频 */
+  const chv=ch.filter(t=>t.video).map(t=>({title:`社群投稿视频 · ${esc(t.author)}`,url:t.video}));
+  $("vidList").innerHTML=[...h.videos,...chv].map(v=>
+    `<a class="vidbtn" href="${v.url}" target="_blank" rel="noopener">▶ ${v.title}</a>`).join("");
+
+  /* 地图速记 */
+  if(mp){
+    $("mapsec").style.display="block";
+    const cm=communityFor("map",mp.id);
+    $("mName").innerHTML=`${mp.name_cn}<small>${mp.name_en}</small>`;
+    $("mOne").textContent=mp.one_liner;
+    $("mTipsList").innerHTML=mp.tips.map(t=>`<li>${t}</li>`).join("")
+      +(cm.length?cm.map(t=>`<li><span class="tip-badge">社群投稿</span>${esc(t.text)}${t.gif?` <a class="tip-link" href="${esc(t.gif)}" target="_blank" rel="noopener">↗ 动图</a>`:""}${t.video?` <a class="tip-link" href="${esc(t.video)}" target="_blank" rel="noopener">↗ 视频</a>`:""} <span style="color:var(--sub);font-size:11px">— ${esc(t.author)} · ID:${esc(t.user_id||"")}</span></li>`).join(""):"");
+    const cmv=cm.filter(t=>t.video).map(t=>({title:`社群投稿视频 · ${esc(t.author)}`,url:t.video}));
+    $("mVidList").innerHTML=[...mp.videos,...cmv].map(v=>
+      `<a class="vidbtn" href="${v.url}" target="_blank" rel="noopener">▶ ${v.title}</a>`).join("");
+  }else{
+    $("mapsec").style.display="none";
+  }
+
+  $("card").scrollIntoView({behavior:"smooth"});
+}
+
+/* ================= 初始化 ================= */
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+renderHeroCarousel();
+renderMapCarousel();
+/* 轮播先初始化，再渲染社群数据（renderCommCarousel 依赖 CAROUSELS.commCarousel） */
+setupCarousel("heroCarousel");
+setupCarousel("mapCarousel");
+setupCarousel("commCarousel");
+/* 社群数据：按上次选择的模式载入（后端不可达时自动降级回本机模式），再渲染 */
+(async()=>{
+  await loadCommunity();
+  renderCommunity();
+  syncModeUI();
+})();
+</script>
 </body>
 </html>
